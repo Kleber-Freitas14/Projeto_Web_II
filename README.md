@@ -24,4 +24,13 @@ npx tsc
 * Para executar o arquivo node.js
 node  dist/index.js
 
-*
+* Instalando as dependências type orm para rodar o mysql
+ npm i typeorm --save
+ npm i reflect-metadata --save
+ npm i mysql2 --save
+
+* Manipular as variáveis de ambiente
+npm i dotenv --save
+
+* Instalar os tipos de variáveiss para o TypeScript
+npm i --save-dev @types/dotenv
