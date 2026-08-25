@@ -34,3 +34,8 @@ npm i dotenv --save
 
 * Instalar os tipos de variáveiss para o TypeScript
 npm i --save-dev @types/dotenv
+
+Criar Migração no BD
+npx typeorm migration:create src/migration/CreateSituationsTable
+
+npx typeorm migration:create src/migration/CreateUsersTable

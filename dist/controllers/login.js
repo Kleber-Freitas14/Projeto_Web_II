@@ -1,11 +1,11 @@
 // Importar a biblioteca Express
 import express, {} from "express";
 // Importa o arquivo com as credenciais do BD
-import { AppdataSource } from "../data-source.js";
+import { AppDataSource } from "../data-source.js";
 // Criar a aplicação Express
 const router = express();
 // Criando a inicialização da conexão com o BD
-AppdataSource.initialize().then(() => {
+AppDataSource.initialize().then(() => {
     console.log("Conexão Com o Banco de Dados Realizado Com Sucesso!");
 }).catch((error) => {
     console.log("Erro Na Conexão Com o Bando de Dados!");
