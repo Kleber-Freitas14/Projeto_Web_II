@@ -1,5 +1,7 @@
 import "dotenv/config";
-import "reflect-metadata";
+import "reflect-metadata"; 
+import {Situation} from "./entity/situations.js";
+import { User } from "./entity/users.js";
 
 import { DataSource } from "typeorm";
 import { dirname, join } from "node:path";
@@ -27,11 +29,18 @@ export const AppDataSource = new DataSource({
 
     synchronize: false,
 
-    entities: [],
+    entities: [Situation, User],
 
     subscribers: [],
 
     migrations: [
         join(__dirname, "migration", "*.js")
     ],
+})
+
+// Criando a inicialização da conexão com o BD
+AppDataSource.initialize().then(()=>{
+    console.log("Conexão Com o Banco de Dados Realizado Com Sucesso!")
+}).catch((error: unknown)=>{
+    console.log("Erro Na Conexão Com o Bando de Dados!") 
 });

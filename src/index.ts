@@ -1,26 +1,20 @@
-// Importar a biblioteca Express
-
 import express from "express";
-
-// Importar variáveis de ambiente
 import dotenv from "dotenv";
-// Carregando as variáveis do .env
-dotenv.config()
 
+dotenv.config();
 
-// Criar a aplicação Express
-const app = express()
+const app = express();
 
-//Incluir os Controllers
+// Controllers
+import AuthController from "./controllers/AuthController.js";
+import SituationsController from "./controllers/SituationsController.js";
 
-import login from"./controllers/login.js";
+// Rotas
+app.use("/", AuthController);
+app.use("/", SituationsController);
 
-//Criar as rota
-app.use('/', login)
+const PORT = process.env.PORT || 8080;
 
-
-
-// Iniciar o servidor na porta 8080
-app.listen(process.env.PORT, ()=>{
-    console.log(`Servidor iniciado na porta ${process.env.PORT}: http://localhost:{process.env.PORT`);
+app.listen(PORT, () => {
+    console.log(`Servidor iniciado na porta ${PORT}: http://localhost:${PORT}/Situations`);
 });
