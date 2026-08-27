@@ -42,5 +42,6 @@ export const AppDataSource = new DataSource({
 AppDataSource.initialize().then(()=>{
     console.log("Conexão Com o Banco de Dados Realizado Com Sucesso!")
 }).catch((error: unknown)=>{
-    console.log("Erro Na Conexão Com o Bando de Dados!") 
+    console.log("Erro Na Conexão Com o Bando de Dados!");
+    console.error(error);
 });

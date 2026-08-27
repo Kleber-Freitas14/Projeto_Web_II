@@ -1,5 +1,11 @@
-import {Entity, PrimaryGeneratedColumn, Column, OneToMany} from "typeorm";
+import {
+    Entity,
+    PrimaryGeneratedColumn,
+    Column,
+    OneToMany
+} from "typeorm";
 
+import type { Relation } from "typeorm";
 import { User } from "./users.js";
 
 @Entity("situations")
@@ -25,5 +31,5 @@ export class Situation {
     updatedAt!: Date;
 
     @OneToMany(() => User, (user) => user.situation)
-    users!: User[];
+    users!: Relation<User>;
 }
