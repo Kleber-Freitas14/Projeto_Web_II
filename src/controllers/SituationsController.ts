@@ -2,16 +2,27 @@ import express, { type Request, type Response } from "express";
 import { AppDataSource } from "../data-source.js";
 import { Situation } from "../entity/situations.js";
 
+//Criar a Aplicação Express
 const router = express.Router();
 
-// GET - Listar todas as situações
-router.get("/Situations", async (req: Request, res: Response) => {
+// Criar a Visualização do item cadastrado em situação
+router.get("/Situations/:id", async (req: Request, res: Response) => {
     try {
+
+        const id= req.params.id;
         const situationRepository = AppDataSource.getRepository(Situation);
 
-        const situations = await situationRepository.find();
+        const situations = await situationRepository.findOneBy({id : parseInt(id)});
 
+        if(!situations){
+           res.status(404).json({
+            mensagem: "Situação não encontrada!"
+        });
+        return 
+        }
+        
         res.status(200).json(situations);
+        return
 
     } catch (error) {
         console.error("Erro ao buscar situações:", error);
@@ -19,6 +30,7 @@ router.get("/Situations", async (req: Request, res: Response) => {
         res.status(500).json({
             mensagem: "Erro ao buscar situações!"
         });
+        return
     }
 });
 
