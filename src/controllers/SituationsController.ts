@@ -159,5 +159,50 @@ router.put("/Situations/:id", async (req: Request, res: Response) => {
     }
 });
 
+// Delete 
+router.delete("/Situations/:id", async (req: Request, res: Response) => {
+    try {
+
+        const id = req.params.id as string;
+
+        
+
+        const situationRepository =
+            AppDataSource.getRepository(Situation);
+
+        const situation = await situationRepository.findOneBy({
+            id: parseInt(id)
+        });
+
+        if (!situation) {
+            res.status(404).json({
+                mensagem: "Situação não encontrada!"
+            });
+            return;
+        }
+
+        // Remove os dados no BD
+        await situationRepository.remove(situation);
+
+        
+
+        res.status(200).json({
+            mensagem: "Situação removida com sucesso!",
+            
+        });
+
+        return;
+
+    } catch (error) {
+
+        console.error("Erro ao atualizar situação:", error);
+
+        res.status(500).json({
+            mensagem: "Erro ao atualizar situação!"
+        });
+
+        return;
+    }
+});
 
 export default router;
