@@ -1,6 +1,7 @@
 import express, { type Request, type Response } from "express";
 import { AppDataSource } from "../data-source.js";
 import { Situation } from "../entity/situations.js";
+import { PaginationService } from "../services/PaginationService.js";
 
 
 
@@ -20,47 +21,15 @@ router.get("/Situations", async (req: Request, res: Response) => {
         console.log(page);
 
         // Definir o limite de registro por página
-        const limit = 1;
+        const limit = Number(req.query.limit) || 10;
 
-        // Contar o total de registros no BD
-        const totalSituations = await situationRepository.count();
+        
 
-        // Verificar se existem registros
-        if(totalSituations === 0){
-            res.status(400).json({
-                messagem : "Nenhuma situação encontrada!",
-            });
-            return;
-        }
+        const result = await PaginationService.paginate(situationRepository, page, limit, {id: "DESC"});
 
-        // Calcular a última página
-        const lastPage = Math.ceil(totalSituations / limit  )
-
-        // Verificar se a página solicitada é válida
-        if (page > lastPage){
-            res.status(400).json({
-                messagem : `Página Inválida. O total de pagínas é ${lastPage}`,
-            });
-            return;
-        }
-
-        // Calcular o offset (apartir de qual registro começar a busca)
-        const offset = (page - 1)*limit;
-
-        // Recuperar as situações do BD com paginação
-        const situations = await situationRepository.find({
-            take: limit,
-            skip: offset,
-            order: {id: "DESC"}
-        });
         
         // Retornar a resposta com os dados e informações da paginação
-        res.status(200).json({
-            currentPage: page,
-            lastPage,
-            totalSituations,
-            situations,
-        });
+        res.status(200).json(result);
         return;
 
     } catch (error) {
