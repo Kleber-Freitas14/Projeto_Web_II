@@ -6,6 +6,7 @@ import { User } from "./entity/users.js";
 import { DataSource } from "typeorm";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ProductCategory } from "./entity/productCategories.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -29,7 +30,7 @@ export const AppDataSource = new DataSource({
 
     synchronize: false,
 
-    entities: [Situation, User],
+    entities: [Situation, User, ProductCategory],
 
     subscribers: [],
 
