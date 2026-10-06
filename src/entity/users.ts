@@ -16,13 +16,13 @@ export class User {
     id!: number;
 
     @Column()
-    nome!: string;
+    name!: string;
 
     @Column({ unique: true })
     email!: string;
 
     @ManyToOne(() => Situation, (situation) => situation.users)
-    @JoinColumn({ name: "situation" })
+    @JoinColumn({ name: "situationId" })
     situation!: Relation<Situation>;
 
     @Column({

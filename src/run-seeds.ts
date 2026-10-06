@@ -3,6 +3,7 @@ import CreateSituationsSeeds from "./seeds/CreateSituationsSeeds.js";
 import CreateProductCategoriesSeeds from "./seeds/CreateProductCategoriesSeeds.js";
 import CreateProductsSeeds from "./seeds/CreateProductsSeeds.js";
 import CreateProductSituationsSeeds from "./seeds/CreateProductSituationsSeeds.js";
+import CreateUsersSeeds from "./seeds/CreateUsersSeeds.js";
 
 const runSeeds = async () => {
     console.log("Conectando ao Banco de Dados...");
@@ -16,12 +17,14 @@ const runSeeds = async () => {
         const productCategoriesSeeds = new CreateProductCategoriesSeeds();
         const productsSeeds = new CreateProductsSeeds();
         const createProductSituationsSeeds = new CreateProductSituationsSeeds();
+        
 
         // Executa as Seeds
         await situationsSeeds.run(AppDataSource);
         await productCategoriesSeeds.run(AppDataSource);
         await productsSeeds.run(AppDataSource);
         await createProductSituationsSeeds.run(AppDataSource);
+        await new CreateUsersSeeds().run(AppDataSource);
 
     } catch (error) {
 

@@ -31,5 +31,5 @@ export class Situation {
     updatedAt!: Date;
 
     @OneToMany(() => User, (user) => user.situation)
-    users!: Relation<User>;
+    users!: Relation<User[]>;
 }
