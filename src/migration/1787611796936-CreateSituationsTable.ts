@@ -2,6 +2,7 @@
 import { Table } from "typeorm";
 import type {MigrationInterface, QueryRunner} from "typeorm";
 
+
 export class CreateSituationsTable1787611796936 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {

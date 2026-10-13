@@ -18,6 +18,7 @@ const runSeeds = async () => {
         const productsSeeds = new CreateProductsSeeds();
         const createProductSituationsSeeds = new CreateProductSituationsSeeds();
         
+        
 
         // Executa as Seeds
         await situationsSeeds.run(AppDataSource);
