@@ -1,62 +1,73 @@
+
 import express, { type Request, type Response } from "express";
 import { AppDataSource } from "../data-source.js";
 import { Situation } from "../entity/situations.js";
 import { PaginationService } from "../services/PaginationService.js";
-
-
+import * as yup from "yup";
 
 // Criar a aplicação Express
 const router = express.Router();
 
+// Schema de validação
+const situationSchema = yup.object({
+    nameSituation: yup.string()
+        .transform((value) => value?.trim())
+        .typeError("O campo deve ser um texto!")
+        .required("O campo nome é obrigatório!")
+        .min(3, "O campo nome deve ter no mínimo 3 caracteres!")
+});
 
 // GET - Listar todas as situações
 router.get("/Situations", async (req: Request, res: Response) => {
     try {
-        //Obter o repositório de entidade Situation
         const situationRepository = AppDataSource.getRepository(Situation);
 
-        // Receber o número da página e defnir página 1 como padrão
         const page = Number(req.query.page) || 1;
-
-        console.log(page);
-
-        // Definir o limite de registro por página
         const limit = Number(req.query.limit) || 10;
 
-        
+        if (!Number.isInteger(page) || page < 1 ||
+            !Number.isInteger(limit) || limit < 1) {
+            res.status(400).json({
+                mensagem: "Página e limite devem ser números inteiros positivos!"
+            });
+            return;
+        }
 
-        const result = await PaginationService.paginate(situationRepository, page, limit, {id: "DESC"});
+        const result = await PaginationService.paginate(
+            situationRepository,
+            page,
+            limit,
+            { id: "DESC" }
+        );
 
-        
-        // Retornar a resposta com os dados e informações da paginação
         res.status(200).json(result);
         return;
 
     } catch (error) {
-
         console.error("Erro ao listar situações:", error);
 
         res.status(500).json({
             mensagem: "Erro ao listar situações!"
         });
-
         return;
     }
 });
 
-
 // GET - Visualizar uma situação pelo ID
 router.get("/Situations/:id", async (req: Request, res: Response) => {
     try {
+        const id = Number(req.params.id);
 
-        const id = req.params.id as string;
+        if (!Number.isInteger(id) || id < 1) {
+            res.status(400).json({
+                mensagem: "ID inválido!"
+            });
+            return;
+        }
 
-        const situationRepository =
-            AppDataSource.getRepository(Situation);
+        const situationRepository = AppDataSource.getRepository(Situation);
 
-        const situation = await situationRepository.findOneBy({
-            id: parseInt(id)
-        });
+        const situation = await situationRepository.findOneBy({ id });
 
         if (!situation) {
             res.status(404).json({
@@ -69,29 +80,42 @@ router.get("/Situations/:id", async (req: Request, res: Response) => {
         return;
 
     } catch (error) {
-
         console.error("Erro ao buscar situação:", error);
 
         res.status(500).json({
             mensagem: "Erro ao visualizar situação!"
         });
-
         return;
     }
 });
 
-
 // POST - Cadastrar situação
+// POST - Cadastrar situação
+
 router.post("/Situations", async (req: Request, res: Response) => {
     try {
 
-        console.log("Dados recebidos:", req.body);
+        console.log("BODY RECEBIDO:", req.body);
 
-        const { nameSituation } = req.body ?? {};
+        const nameSituation = req.body?.nameSituation;
 
-        if (!nameSituation) {
+        // Verificar se o campo está vazio
+        if (nameSituation === undefined ||
+            nameSituation === null ||
+            typeof nameSituation !== "string" ||
+            nameSituation.trim() === "") {
+
             res.status(400).json({
-                mensagem: "O campo nameSituation é obrigatório!"
+                mensagem: "O campo nome é obrigatório!"
+            });
+            return;
+        }
+
+        // Verificar quantidade mínima de caracteres
+        if (nameSituation.trim().length < 3) {
+
+            res.status(400).json({
+                mensagem: "O campo nome deve ter no mínimo 3 caracteres!"
             });
             return;
         }
@@ -100,7 +124,7 @@ router.post("/Situations", async (req: Request, res: Response) => {
             AppDataSource.getRepository(Situation);
 
         const newSituation = situationRepository.create({
-            nameSituation
+            nameSituation: nameSituation.trim()
         });
 
         await situationRepository.save(newSituation);
@@ -128,17 +152,18 @@ router.post("/Situations", async (req: Request, res: Response) => {
 // PUT - Atualizar situação
 router.put("/Situations/:id", async (req: Request, res: Response) => {
     try {
+        const id = Number(req.params.id);
 
-        const id = req.params.id as string;
+        if (!Number.isInteger(id) || id < 1) {
+            res.status(400).json({
+                mensagem: "ID inválido!"
+            });
+            return;
+        }
 
-        const data = req.body;
+        const situationRepository = AppDataSource.getRepository(Situation);
 
-        const situationRepository =
-            AppDataSource.getRepository(Situation);
-
-        const situation = await situationRepository.findOneBy({
-            id: parseInt(id)
-        });
+        const situation = await situationRepository.findOneBy({ id });
 
         if (!situation) {
             res.status(404).json({
@@ -147,46 +172,54 @@ router.put("/Situations/:id", async (req: Request, res: Response) => {
             return;
         }
 
-        // Atualiza os dados
+        const data = await situationSchema.validate(req.body, {
+            abortEarly: false,
+            stripUnknown: true
+        });
+
         situationRepository.merge(situation, data);
 
-        // Salva as alterações
-        const updatedSituation =
-            await situationRepository.save(situation);
+        const updatedSituation = await situationRepository.save(situation);
 
         res.status(200).json({
             mensagem: "Situação atualizada com sucesso!",
             situation: updatedSituation
         });
-
         return;
 
     } catch (error) {
+        if (error instanceof yup.ValidationError) {
+            res.status(400).json({
+                mensagem: "Erro de validação!",
+                erros: error.errors
+            });
+            return;
+        }
 
         console.error("Erro ao atualizar situação:", error);
 
         res.status(500).json({
             mensagem: "Erro ao atualizar situação!"
         });
-
         return;
     }
 });
 
-// Delete 
+// DELETE - Remover situação
 router.delete("/Situations/:id", async (req: Request, res: Response) => {
     try {
+        const id = Number(req.params.id);
 
-        const id = req.params.id as string;
+        if (!Number.isInteger(id) || id < 1) {
+            res.status(400).json({
+                mensagem: "ID inválido!"
+            });
+            return;
+        }
 
-        
+        const situationRepository = AppDataSource.getRepository(Situation);
 
-        const situationRepository =
-            AppDataSource.getRepository(Situation);
-
-        const situation = await situationRepository.findOneBy({
-            id: parseInt(id)
-        });
+        const situation = await situationRepository.findOneBy({ id });
 
         if (!situation) {
             res.status(404).json({
@@ -195,26 +228,19 @@ router.delete("/Situations/:id", async (req: Request, res: Response) => {
             return;
         }
 
-        // Remove os dados no BD
         await situationRepository.remove(situation);
 
-        
-
         res.status(200).json({
-            mensagem: "Situação removida com sucesso!",
-            
+            mensagem: "Situação removida com sucesso!"
         });
-
         return;
 
     } catch (error) {
-
-        console.error("Erro ao atualizar situação:", error);
+        console.error("Erro ao remover situação:", error);
 
         res.status(500).json({
-            mensagem: "Erro ao atualizar situação!"
+            mensagem: "Erro ao remover situação!"
         });
-
         return;
     }
 });

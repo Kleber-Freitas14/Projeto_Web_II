@@ -1,3 +1,7 @@
+
+import express from "express";
+import dotenv from "dotenv";
+
 // Incluir os Controllers
 import AuthController from "./controllers/AuthController.js";
 import SituationsController from "./controllers/SituationsController.js";
@@ -5,18 +9,15 @@ import ProductCategoriesController from "./controllers/ProductCategoriesControll
 import ProductsController from "./controllers/ProductsController.js";
 import ProductSituationsController from "./controllers/ProductSituationsController.js";
 import UsersController from "./controllers/UsersController.js";
-import express from "express";
-import dotenv from "dotenv";
 
 dotenv.config();
 
-
-//Criar a aplicação express
+// Criar a aplicação Express
 const app = express();
 
-// Criar um middleware para receber os dados no corpo da requisição
+// Configurar recebimento de dados
 app.use(express.json());
-
+app.use(express.urlencoded({ extended: true }));
 
 // Criar as Rotas
 app.use("/", AuthController);
