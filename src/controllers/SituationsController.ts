@@ -5,7 +5,6 @@ import { Situation } from "../entity/situations.js";
 import { PaginationService } from "../services/PaginationService.js";
 import * as yup from "yup";
 
-// Criar a aplicação Express
 const router = express.Router();
 
 // Schema de validação
@@ -17,6 +16,14 @@ const situationSchema = yup.object({
         .min(3, "O campo nome deve ter no mínimo 3 caracteres!")
 });
 
+// Função para tratar erros de validação
+function tratarErroValidacao(error: yup.ValidationError, res: Response) {
+    return res.status(400).json({
+        mensagem: "Erro de validação!",
+        erros: error.errors
+    });
+}
+
 // GET - Listar todas as situações
 router.get("/Situations", async (req: Request, res: Response) => {
     try {
@@ -25,12 +32,13 @@ router.get("/Situations", async (req: Request, res: Response) => {
         const page = Number(req.query.page) || 1;
         const limit = Number(req.query.limit) || 10;
 
-        if (!Number.isInteger(page) || page < 1 ||
-            !Number.isInteger(limit) || limit < 1) {
-            res.status(400).json({
+        if (
+            !Number.isInteger(page) || page < 1 ||
+            !Number.isInteger(limit) || limit < 1
+        ) {
+            return res.status(400).json({
                 mensagem: "Página e limite devem ser números inteiros positivos!"
             });
-            return;
         }
 
         const result = await PaginationService.paginate(
@@ -40,16 +48,14 @@ router.get("/Situations", async (req: Request, res: Response) => {
             { id: "DESC" }
         );
 
-        res.status(200).json(result);
-        return;
+        return res.status(200).json(result);
 
     } catch (error) {
         console.error("Erro ao listar situações:", error);
 
-        res.status(500).json({
+        return res.status(500).json({
             mensagem: "Erro ao listar situações!"
         });
-        return;
     }
 });
 
@@ -59,10 +65,9 @@ router.get("/Situations/:id", async (req: Request, res: Response) => {
         const id = Number(req.params.id);
 
         if (!Number.isInteger(id) || id < 1) {
-            res.status(400).json({
+            return res.status(400).json({
                 mensagem: "ID inválido!"
             });
-            return;
         }
 
         const situationRepository = AppDataSource.getRepository(Situation);
@@ -70,84 +75,79 @@ router.get("/Situations/:id", async (req: Request, res: Response) => {
         const situation = await situationRepository.findOneBy({ id });
 
         if (!situation) {
-            res.status(404).json({
+            return res.status(404).json({
                 mensagem: "Situação não encontrada!"
             });
-            return;
         }
 
-        res.status(200).json(situation);
-        return;
+        return res.status(200).json(situation);
 
     } catch (error) {
         console.error("Erro ao buscar situação:", error);
 
-        res.status(500).json({
+        return res.status(500).json({
             mensagem: "Erro ao visualizar situação!"
         });
-        return;
     }
 });
 
 // POST - Cadastrar situação
-// POST - Cadastrar situação
-
 router.post("/Situations", async (req: Request, res: Response) => {
     try {
-
-        console.log("BODY RECEBIDO:", req.body);
-
-        const nameSituation = req.body?.nameSituation;
-
-        // Verificar se o campo está vazio
-        if (nameSituation === undefined ||
-            nameSituation === null ||
-            typeof nameSituation !== "string" ||
-            nameSituation.trim() === "") {
-
-            res.status(400).json({
-                mensagem: "O campo nome é obrigatório!"
-            });
-            return;
-        }
-
-        // Verificar quantidade mínima de caracteres
-        if (nameSituation.trim().length < 3) {
-
-            res.status(400).json({
-                mensagem: "O campo nome deve ter no mínimo 3 caracteres!"
-            });
-            return;
-        }
-
-        const situationRepository =
-            AppDataSource.getRepository(Situation);
-
-        const newSituation = situationRepository.create({
-            nameSituation: nameSituation.trim()
+        const data = await situationSchema.validate(req.body, {
+            abortEarly: false,
+            stripUnknown: true
         });
 
-        await situationRepository.save(newSituation);
+        const repo = AppDataSource.getRepository(Situation);
 
-        res.status(201).json({
+        // Verificar se já existe uma situação com esse nome
+        const existingSituation = await repo
+            .createQueryBuilder("situation")
+            .where("LOWER(situation.nameSituation) = LOWER(:nome)", {
+                nome: data.nameSituation
+            })
+            .getOne();
+
+        if (existingSituation) {
+            return res.status(400).json({
+                mensagem: "Já existe uma situação cadastrada com esse nome!"
+            });
+        }
+
+        const novaSituacao = repo.create(data);
+
+        await repo.save(novaSituacao);
+
+        return res.status(201).json({
             mensagem: "Situação cadastrada com sucesso!",
-            situation: newSituation
+            situation: novaSituacao
         });
-
-        return;
 
     } catch (error) {
+        if (error instanceof yup.ValidationError) {
+            return tratarErroValidacao(error, res);
+        }
 
-        console.error("Erro ao cadastrar situação:", error);
+        if (
+            typeof error === "object" &&
+            error !== null &&
+            "code" in error &&
+            error.code === "ER_DUP_ENTRY"
+        ) {
+            return res.status(400).json({
+                mensagem: "Já existe uma situação cadastrada com esse nome!"
+            });
+        }
 
-        res.status(500).json({
-            mensagem: "Erro ao cadastrar situação!"
+        console.error("ERRO DETALHADO NO POST:", error);
+
+        return res.status(500).json({
+            mensagem: "Erro interno do servidor!",
+            erro: error instanceof Error ? error.message : String(error)
         });
-
-        return;
     }
 });
-
 
 // PUT - Atualizar situação
 router.put("/Situations/:id", async (req: Request, res: Response) => {
@@ -155,53 +155,75 @@ router.put("/Situations/:id", async (req: Request, res: Response) => {
         const id = Number(req.params.id);
 
         if (!Number.isInteger(id) || id < 1) {
-            res.status(400).json({
+            return res.status(400).json({
                 mensagem: "ID inválido!"
             });
-            return;
         }
 
         const situationRepository = AppDataSource.getRepository(Situation);
 
+        // Localizar a situação que será atualizada
         const situation = await situationRepository.findOneBy({ id });
 
         if (!situation) {
-            res.status(404).json({
+            return res.status(404).json({
                 mensagem: "Situação não encontrada!"
             });
-            return;
         }
 
+        // Validar os dados recebidos
         const data = await situationSchema.validate(req.body, {
             abortEarly: false,
             stripUnknown: true
         });
 
+        // Verificar duplicidade, desconsiderando o próprio registro
+        const situacaoExistente = await situationRepository
+            .createQueryBuilder("situation")
+            .where("LOWER(situation.nameSituation) = LOWER(:nome)", {
+                nome: data.nameSituation
+            })
+            .andWhere("situation.id != :id", { id })
+            .getOne();
+
+        if (situacaoExistente) {
+            return res.status(400).json({
+                mensagem: "Já existe uma situação cadastrada com esse nome!"
+            });
+        }
+
+        // Atualizar e salvar
         situationRepository.merge(situation, data);
 
         const updatedSituation = await situationRepository.save(situation);
 
-        res.status(200).json({
+        return res.status(200).json({
             mensagem: "Situação atualizada com sucesso!",
             situation: updatedSituation
         });
-        return;
 
     } catch (error) {
         if (error instanceof yup.ValidationError) {
-            res.status(400).json({
-                mensagem: "Erro de validação!",
-                erros: error.errors
-            });
-            return;
+            return tratarErroValidacao(error, res);
         }
 
-        console.error("Erro ao atualizar situação:", error);
+        if (
+            typeof error === "object" &&
+            error !== null &&
+            "code" in error &&
+            error.code === "ER_DUP_ENTRY"
+        ) {
+            return res.status(400).json({
+                mensagem: "Já existe uma situação cadastrada com esse nome!"
+            });
+        }
 
-        res.status(500).json({
-            mensagem: "Erro ao atualizar situação!"
+        console.error("ERRO DETALHADO NO PUT:", error);
+
+        return res.status(500).json({
+            mensagem: "Erro ao atualizar situação!",
+            erro: error instanceof Error ? error.message : String(error)
         });
-        return;
     }
 });
 
@@ -211,10 +233,9 @@ router.delete("/Situations/:id", async (req: Request, res: Response) => {
         const id = Number(req.params.id);
 
         if (!Number.isInteger(id) || id < 1) {
-            res.status(400).json({
+            return res.status(400).json({
                 mensagem: "ID inválido!"
             });
-            return;
         }
 
         const situationRepository = AppDataSource.getRepository(Situation);
@@ -222,26 +243,23 @@ router.delete("/Situations/:id", async (req: Request, res: Response) => {
         const situation = await situationRepository.findOneBy({ id });
 
         if (!situation) {
-            res.status(404).json({
+            return res.status(404).json({
                 mensagem: "Situação não encontrada!"
             });
-            return;
         }
 
         await situationRepository.remove(situation);
 
-        res.status(200).json({
+        return res.status(200).json({
             mensagem: "Situação removida com sucesso!"
         });
-        return;
 
     } catch (error) {
         console.error("Erro ao remover situação:", error);
 
-        res.status(500).json({
+        return res.status(500).json({
             mensagem: "Erro ao remover situação!"
         });
-        return;
     }
 });
 
