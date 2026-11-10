@@ -1,16 +1,22 @@
 import express from "express";
 import dotenv from "dotenv";
 // Incluir os Controllers
+import TesteConnectionController from "./controllers/TesteConnectionController.js";
 import AuthController from "./controllers/AuthController.js";
+import UsersController from "./controllers/UsersController.js";
 import SituationsController from "./controllers/SituationsController.js";
 import ProductCategoriesController from "./controllers/ProductCategoriesController.js";
 import ProductsController from "./controllers/ProductsController.js";
 import ProductSituationsController from "./controllers/ProductSituationsController.js";
-import UsersController from "./controllers/UsersController.js";
+// importar biblioteca para conexão externa
+import cors from 'cors';
+// Carregar as variáveis do .env
 dotenv.config();
 // Criar a aplicação Express
 const app = express();
 console.log(">>> INDEX.TS ATUAL ESTÁ SENDO EXECUTADO <<<");
+//Criar o midldleware para permitir requição externa
+app.use(cors());
 // Configurar recebimento de dados
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -25,6 +31,7 @@ app.use((req, res, next) => {
     next();
 });
 // Criar as Rotas
+app.use("/", TesteConnectionController);
 app.use("/", AuthController);
 app.use("/", SituationsController);
 app.use("/", ProductCategoriesController);

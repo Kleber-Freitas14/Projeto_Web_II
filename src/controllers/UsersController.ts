@@ -1,242 +1,307 @@
-import express, { type Request, type Response } from "express";
+//Importa a biblioteca Express
+import express, {type Request, type Response} from "express";
+
+//Importar a conexão com BD
 import { AppDataSource } from "../data-source.js";
+
+// importar a entidade
 import { User } from "../entity/users.js";
+
+//Importa serviço de paginação
 import { PaginationService } from "../services/PaginationService.js";
+
+//Importa a biblioteca para validar os dados para cadastrar e editar
+import *as yup from 'yup';
+
+//Importar o NOt para utilizar como restrição para ignorar o próprio ID na consulta
+import { Not } from "typeorm";
+import { parse } from "node:path";
 import { Situation } from "../entity/situations.js";
 
+
+// Criar a aplicação Express
 const router = express.Router();
 
-router.get("/Users", async (req: Request, res: Response) => {
+// Criar a  rora para listatr os usuários
+//Endedeço para acessar a API através da aplicaçãoo externa com o o verbo GET: http://localhost:8080/users?page=1&limit=10
+router.get("/users", async (req: Request, res: Response) => {
     try {
-        const userRepository =
-            AppDataSource.getRepository(User);
+        //Obter o respositório da entidade user
+        const userRepository = AppDataSource.getRepository(User);
 
+        //Receber o número da página e definir página 1 como padrão
         const page = Number(req.query.page) || 1;
-        const limit = Number(req.query.limit) || 10;
 
-        const result = await PaginationService.paginate(
-            userRepository,
-            page,
-            limit,
-            { id: "DESC" }
-        );
+        //Definir o limite de registro por página
+        const limit = Number (req.query.limit) || 10;
 
+        //Usar serviço de paginação 
+        const result = await PaginationService.paginate(userRepository, page, limit, {id: "DESC"});
+
+        //Retornar a resposta com os dados e informações da paginação
         res.status(200).json(result);
         return;
 
-    } catch (error) {
-        console.error("Erro ao listar usuários:", error);
-
+    } catch (error){
+        //Retornar erro e caso de falha
         res.status(500).json({
-            mensagem: "Erro ao listar usuários!"
+            message: "Erros ao listar os usuários!",
         });
-
         return;
     }
+    
 });
 
-router.get("/Users/:id", async (req: Request, res: Response) => {
-    try {
-        const id = req.params.id as string;
+//Rota para visualizar um usiário específico
+//Endereço para casar a API através da aplicação com o vervo GET: http://localhost:8080/users/:id
 
-        const userRepository =
-            AppDataSource.getRepository(User);
+router.get("/users/:id", async (req: Request, res: Response) => {
+    try{
+        //Obter o ID do usuário a partir dos parâmetro da requisição
+        const {id}= req.params;
 
-        const user = await userRepository.findOneBy({
-            id: parseInt(id)
-        });
+        //Obter o respositório da entidade User
+        const userRepository = AppDataSource.getRepository(User)
 
-        if (!user) {
+        //Buscar o ususário no banco de dados pelo ID
+        const userId = Number(id);
+
+        const user = await userRepository.findOneBy({ id: userId });
+
+        //Verificar se o usuário foi encontrado
+        if(!user){
             res.status(404).json({
-                mensagem: "Usuário não encontrado!"
+                message: "Ususário não encontrado!"
             });
             return;
         }
 
+        //Retornar ao usuário encontrado
         res.status(200).json(user);
         return;
-
-    } catch (error) {
-        console.error("Erro ao buscar usuário:", error);
-
+        
+    } catch(error){
+        //Retornar erro em caso de falha
         res.status(500).json({
-            mensagem: "Erro ao visualizar usuário!"
+            message: "Erro ao visualizar o usuário!"
         });
-
-        return;
     }
 });
 
-router.post("/Users", async (req: Request, res: Response) => {
-    try {
-        console.log("Dados recebidos:", req.body);
 
-        const {
-            name,
-            email,
-            idSituation
-        } = req.body ?? {};
+// Criar a rota para cadastrar usuário
+// Endereço para cassar a API através da aplicação externa com o verbo POST: http://localhost:8080/users
+// A aplicação externa deve indicar que está enviando os dados em formato de obejto Content-Type: application/json
+// Dados em formato de objeto
+/*
+{
+    "name": "Adriano Baião",
+    "email": "baiao@baiao.com",
+    "situation": 1
+}
+*/
 
-        if (!name || !email || !idSituation) {
-            res.status(400).json({
-                mensagem:
-                    "Os campos name, email e idSituation são obrigatórios!"
-            });
-            return;
-        }
+router.post("/users", async (req: Request, res: Response) => {
+    console.log(">>> POST USERS ATUAL EXECUTADO <<<");
+    try{
+        //Receber os dados enviados no corpo da requisição
+        var data = req.body;
 
-        const userRepository =
-            AppDataSource.getRepository(User);
-
-        const situationRepository =
-            AppDataSource.getRepository(Situation);
-
-        const situation =
-            await situationRepository.findOneBy({
-                id: parseInt(idSituation)
-            });
-
-        if (!situation) {
-            res.status(404).json({
-                mensagem: "Situação não encontrada!"
-            });
-            return;
-        }
-
-        const newUser = userRepository.create({
-            name,
-            email,
-            situation
+        //Validar os ddos utiliando o yup
+        const schema = yup.object().shape({
+            name: yup.string().trim().required("O campo nome é obrigatório!").min(3, "O campo dever ter no mínimo 3 caracteres!"),
+            email: yup.string().email("email Inválido!").required("O campo e-mail é obrigatório!"),
+            situation: yup.number().required("O campo situação é obrigatório!")
         });
 
+        console.log("DADOS RECEBIDOS:", data);
+
+        //Verificar  se os dados passaram pela validação
+        await schema.validate(data, {abortEarly: false});
+
+        //Criar uma instância do repositório de user
+        const userRepository = AppDataSource.getRepository(User);
+
+        //Recuparar o registro do banco de dados com o valor da coluna email
+        const existingUser = await userRepository.findOne({
+            where:{email: data.email}
+        });
+
+        //Verificar se já existe um usuário com o memso e-mail
+        if(existingUser){
+            res.status(400).json({
+                message: "Já existe um usuário cadastrado com esse e-mail!",
+            });
+            return;
+        }
+
+        //Criar um no registro
+        const newUser =  userRepository.create(data);
+
+        //Salvar o registro no BD
         await userRepository.save(newUser);
 
+        //Retornar resposta com sucesso
         res.status(201).json({
-            mensagem: "Usuário cadastrado com sucesso!",
-            user: newUser
+            message: "Usuário carastrado com sucesso!",
+            situation: newUser,
         });
+    } catch (error){
+        if (error instanceof yup.ValidationError){
+            // Retornar erros de validação
+            res.status(400).json({
+                message: error.errors
+            });
+            return;
+        }
 
-        return;
-
-    } catch (error) {
+        //Retornar erro em caso de falha
         console.error("Erro ao cadastrar usuário:", error);
-
         res.status(500).json({
-            mensagem: "Erro ao cadastrar usuário!"
+            message: "Erro ao cadastrar usuário!",
         });
-
-        return;
     }
 });
 
-router.put("/Users/:id", async (req: Request, res: Response) => {
-    try {
-        const id = req.params.id as string;
+// Criar a rota para editar o usuário
+// Endereço para acessar a API através da aplicação externa com o verbo PUT: http://localhost:8080/users/:id
+// A aplicação externa deve indicar que está enviando os dados em formato de objeto: Content-Type: application/json 
+// Dados em formato de objeto
+/*
+{
+    "name": "Kelly,
+    "email": "kelly@baiao,com",
+    "situation": 1
+}
+*/
 
-        const {
-            name,
-            email,
-            idSituation
-        } = req.body ?? {};
+router.put("/users/:id", async (req: Request, res: Response) =>{
+    try{
+        //Obter i ID da situação a partir dos parâmetros da requisição
+        const id = Number(req.params.id);
 
-        const userRepository =
-            AppDataSource.getRepository(User);
+        if (!Number.isInteger(id) || id < 1) {
+            res.status(400).json({
+            message: "ID inválido!"
+        });
+        return;
+        }
+        
 
-        const situationRepository =
-            AppDataSource.getRepository(Situation);
+        //Receber sos dados enviados no corpod a requisição
+        const data = req.body;
 
-        const user = await userRepository.findOneBy({
-            id: parseInt(id)
+        // Validar os dados utilizando o yup
+        const schema = yup.object().shape({
+            name: yup.string().required("O campo nome é obrigatório!").min(3, "O campo deve ter no mínimo 3 caracteres!"),
+            email: yup.string().email("E-mail inválido!").required("O campo é obrigatório!"),
+            situation: yup.number().required("O campo situação é obrigatório!"),
         });
 
-        if (!user) {
+        //Verificar se os dados passara pela validação
+        await schema.validate(data, {abortEarly: false});
+
+        //Obeter o reposiório da entidae User
+        const userRepository = AppDataSource.getRepository(User);
+
+        // Buscar o usuário no banco de dados pelo ID
+        const user = await userRepository.findOneBy({id: id});
+
+        // Verificar se o usuário foi encontrado
+        if(!user){
             res.status(404).json({
-                mensagem: "Usuário não encontrado!"
+                message: "Usuário não encontrado!",
+            });
+            return;
+        }
+        // Verificar se já existe  outro usuário com o mesmo  e-mail, mas que não seja o registro atual
+        const existingUser = await userRepository.findOne({
+            where:{
+                email: data.email,
+                id: Not(id), // Exclui  o próprio registro da busca
+            },
+        });
+
+        if(existingUser){
+            res.status(400).json({
+                message: "Já existe um usuário cadastrado com esse nome!",
             });
             return;
         }
 
-        if (name !== undefined) {
-            user.name = name;
-        }
+        //Atualizar os dados do usuário
+        userRepository.merge(user, data);
 
-        if (email !== undefined) {
-            user.email = email;
-        }
+        //Salvar as alterações no BD
+        const updateUser = await userRepository.save(user);
 
-        if (idSituation !== undefined) {
-            const situation =
-                await situationRepository.findOneBy({
-                    id: parseInt(idSituation)
-                });
 
-            if (!situation) {
-                res.status(404).json({
-                    mensagem: "Situação não encontrada!"
-                });
-                return;
-            }
-
-            user.situation = situation;
-        }
-
-        const updatedUser =
-            await userRepository.save(user);
-
+        // Retornar resposta de sucesso
         res.status(200).json({
-            mensagem: "Usuário atualizado com sucesso!",
-            user: updatedUser
+            message: "Usuário atualizado com sucesso!",
+            user: updateUser
         });
-
-        return;
-
+       
     } catch (error) {
-        console.error("Erro ao atualizar usuário:", error);
-
-        res.status(500).json({
-            mensagem: "Erro ao atualizar usuário!"
-        });
-
-        return;
-    }
-});
-
-router.delete("/Users/:id", async (req: Request, res: Response) => {
-    try {
-        const id = req.params.id as string;
-
-        const userRepository =
-            AppDataSource.getRepository(User);
-
-        const user = await userRepository.findOneBy({
-            id: parseInt(id)
-        });
-
-        if (!user) {
-            res.status(404).json({
-                mensagem: "Usuário não encontrado!"
+        if(error instanceof yup.ValidationError){
+            // Retornar erros de validação
+            res.status(400).json({
+                messagem: error.errors
             });
             return;
         }
 
-        await userRepository.remove(user);
-
-        res.status(200).json({
-            mensagem: "Usuário removido com sucesso!"
-        });
-
-        return;
-
-    } catch (error) {
-        console.error("Erro ao remover usuário:", error);
-
+        //Retornar erro em caso de falha
         res.status(500).json({
-            mensagem: "Erro ao remover usuário!"
+            message: "Erro ao editar usuário!",
         });
-
-        return;
     }
 });
 
+
+// Criar a rota para apagar um usuário
+//Endereço para acessar a API através da aplicação externa com o verbo delete: http://localhost:8080/users/:id
+// Criar a rota para apagar um usuário
+router.delete("/users/:id", async (req: Request, res: Response) => {
+    try {
+        // Obter o ID do usuário
+        const id = Number(req.params.id);
+
+        // Validar o ID
+        if (!Number.isInteger(id) || id < 1) {
+            return res.status(400).json({
+                message: "ID inválido!"
+            });
+        }
+
+        // Obter o repositório
+        const userRepository = AppDataSource.getRepository(User);
+
+        // Excluir o usuário pelo ID
+        const resultado = await userRepository.delete(id);
+
+        // Verificar se algum registro foi excluído
+        if (resultado.affected === 0) {
+            return res.status(404).json({
+                message: "Usuário não encontrado!"
+            });
+        }
+
+        // Retornar sucesso
+        return res.status(200).json({
+            message: "Usuário apagado com sucesso!",
+            registrosExcluidos: resultado.affected
+        });
+
+    } catch (error) {
+        console.error("Erro ao apagar usuário:", error);
+
+        return res.status(500).json({
+            message: "Erro ao apagar o usuário!"
+        });
+    }
+});
+
+
+//Exportar a instrução que está dentro da constante router
 export default router;
-
