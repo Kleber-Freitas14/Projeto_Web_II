@@ -4,6 +4,9 @@ import { DataSource } from "typeorm";
 // Importar as entidades
 import { User } from "../entity/users.js";
 import { Situation } from "../entity/situations.js";
+// Importar a biblioteca para cripgrafar a senha
+import bcrypt from "bcryptjs";
+
 
 export default class CreateUsersSeed {
     public async run(dataSource: DataSource): Promise<void> {
@@ -26,13 +29,21 @@ export default class CreateUsersSeed {
         // Criar os usuários
         const users = [
             {
+                name: "Kleber Freitas",
+                email: "kleber@kleber.com",
+                password: await bcrypt.hash("010101", 10),
+                situation: situation,
+            },
+            {
                 name: "Adriano Baião",
                 email: "baiao@BaseAudioContext.com",
+                password: await bcrypt.hash("010101", 10),
                 situation: situation,
             },
             {
                 name: "Aurora",
                 email: "aurora@BaseAudioContext.com",
+                password: await bcrypt.hash("010101", 10),
                 situation: situation,
             },
         ];
@@ -44,12 +55,22 @@ export default class CreateUsersSeed {
                 where: { email: user.email }
             });
 
+
             if (!existingUser) {
-                await userRepository.save(user);
-                console.log(`Usuário ${user.name} cadastrado com sucesso!`);
+
+            await userRepository.save(user);
+            console.log(`Usuário ${user.name} cadastrado com sucesso!`);
+
             } else {
-                console.log(`Usuário ${user.name} já está cadastrado!`);
+
+            existingUser.password = user.password;
+
+            await userRepository.save(existingUser);
+
+            console.log(`Senha do usuário ${user.name} atualizada!`);
             }
+
+            
         }
     }
 }

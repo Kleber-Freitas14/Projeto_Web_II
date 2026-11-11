@@ -16,6 +16,9 @@ export class Product {
     @Column({ length: 100 })
     nameProduct!: string;
 
+    @Column({unique: true})
+    slug!: string;
+
     @Column("decimal", { precision: 10, scale: 2 })
     priceProduct!: number;
 

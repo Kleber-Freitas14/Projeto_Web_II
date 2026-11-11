@@ -18,13 +18,16 @@ import { Not } from "typeorm";
 import { parse } from "node:path";
 import { Situation } from "../entity/situations.js";
 
+import {verifyToken} from "../middlewares/authMiddleware.js";
+import bcrypt from "bcryptjs";
+
 
 // Criar a aplicação Express
 const router = express.Router();
 
 // Criar a  rora para listatr os usuários
 //Endedeço para acessar a API através da aplicaçãoo externa com o o verbo GET: http://localhost:8080/users?page=1&limit=10
-router.get("/users", async (req: Request, res: Response) => {
+router.get("/users", verifyToken, async (req: Request, res: Response) => {
     try {
         //Obter o respositório da entidade user
         const userRepository = AppDataSource.getRepository(User);
@@ -97,6 +100,7 @@ router.get("/users/:id", async (req: Request, res: Response) => {
 {
     "name": "Adriano Baião",
     "email": "baiao@baiao.com",
+    "password": "123456",
     "situation": 1
 }
 */
@@ -111,6 +115,7 @@ router.post("/users", async (req: Request, res: Response) => {
         const schema = yup.object().shape({
             name: yup.string().trim().required("O campo nome é obrigatório!").min(3, "O campo dever ter no mínimo 3 caracteres!"),
             email: yup.string().email("email Inválido!").required("O campo e-mail é obrigatório!"),
+            password: yup.string().required("O campo de senha é obrigatório!").min(6, "O campo senha dever ter no mínimo 6 caracteres!" ),
             situation: yup.number().required("O campo situação é obrigatório!")
         });
 
@@ -134,6 +139,9 @@ router.post("/users", async (req: Request, res: Response) => {
             });
             return;
         }
+
+        // Criptografar a senha antes de salvar
+        data.password = await bcrypt.hash(data.password, 10)
 
         //Criar um no registro
         const newUser =  userRepository.create(data);
@@ -162,6 +170,64 @@ router.post("/users", async (req: Request, res: Response) => {
         });
     }
 });
+
+// Criar a rota para editra senha do usuário
+//Endereçio para cassar a API através da aplicação externa com o verbo PUT http://localhost:8080/users-password/:id
+// A aplicação externa deve indicar que está enviando os dado em formato de obejto: Content-Type: application/json
+//Dados em formato de obejto
+
+
+router.put("/users-password/:id", async (req: Request, res: Response) => {
+    try {
+        const id = Number(req.params.id);
+
+        if (!Number.isInteger(id) || id < 1) {
+            return res.status(400).json({
+                message: "ID de usuário inválido!"
+            });
+        }
+
+        const schema = yup.object().shape({
+            password: yup.string()
+                .required("O campo senha é obrigatório!")
+                .min(8, "A senha deve ter no mínimo 8 caracteres!")
+        });
+
+        const data = await schema.validate(req.body, {
+            abortEarly: false
+        });
+
+        const userRepository = AppDataSource.getRepository(User);
+
+        const user = await userRepository.findOneBy({ id });
+
+        if (!user) {
+            return res.status(404).json({
+                message: "Usuário não encontrado!"
+            });
+        }
+
+        user.password = await bcrypt.hash(data.password, 10);
+
+        await userRepository.save(user);
+
+        return res.status(200).json({
+            message: "Senha atualizada com sucesso!"
+        });
+
+    } catch (error) {
+        if (error instanceof yup.ValidationError) {
+            return res.status(400).json({
+                messagem: error.errors
+            });
+        }
+
+        return res.status(500).json({
+            message: "Erro ao atualizar senha!"
+        });
+    }
+});
+
 
 // Criar a rota para editar o usuário
 // Endereço para acessar a API através da aplicação externa com o verbo PUT: http://localhost:8080/users/:id
