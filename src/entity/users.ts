@@ -1,9 +1,9 @@
 import {
-    Entity,
-    PrimaryGeneratedColumn,
-    Column,
-    JoinColumn,
-    ManyToOne
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  JoinColumn,
+  ManyToOne,
 } from "typeorm";
 
 import type { Relation } from "typeorm";
@@ -11,43 +11,40 @@ import { Situation } from "./situations.js";
 
 @Entity("users")
 export class User {
+  @PrimaryGeneratedColumn()
+  id!: number;
 
-    @PrimaryGeneratedColumn()
-    id!: number;
+  @Column()
+  name!: string;
 
-    @Column()
-    name!: string;
+  @Column({ unique: true })
+  email!: string;
 
-     @Column({ unique: true })
-    email!: string;
+  @Column()
+  password!: string;
 
-
-    @Column()
-    password!: string;
-
-    @Column({
+  @Column({
     type: "varchar",
     length: 255,
     unique: true,
-    nullable: true
-    })
-    recoverPassword!: string | null;
+    nullable: true,
+  })
+  recoverPassword!: string | null;
 
+  @ManyToOne(() => Situation, (situation) => situation.users)
+  @JoinColumn({ name: "situationId" })
+  situation!: Relation<Situation>;
 
-    @ManyToOne(() => Situation, (situation) => situation.users)
-    @JoinColumn({ name: "situationId" })
-    situation!: Relation<Situation>;
+  @Column({
+    type: "timestamp",
+    default: () => "CURRENT_TIMESTAMP",
+  })
+  createdAt!: Date;
 
-    @Column({
-        type: "timestamp",
-        default: () => "CURRENT_TIMESTAMP"
-    })
-    createdAt!: Date;
-
-    @Column({
-        type: "timestamp",
-        default: () => "CURRENT_TIMESTAMP",
-        onUpdate: "CURRENT_TIMESTAMP"
-    })
-    updatedAt!: Date;
+  @Column({
+    type: "timestamp",
+    default: () => "CURRENT_TIMESTAMP",
+    onUpdate: "CURRENT_TIMESTAMP",
+  })
+  updatedAt!: Date;
 }
