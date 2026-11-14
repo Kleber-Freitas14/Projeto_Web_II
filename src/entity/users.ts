@@ -18,11 +18,20 @@ export class User {
     @Column()
     name!: string;
 
+     @Column({ unique: true })
+    email!: string;
+
+
     @Column()
     password!: string;
 
-    @Column({ unique: true })
-    email!: string;
+    @Column({
+    type: "varchar",
+    length: 255,
+    unique: true,
+    nullable: true
+    })
+    recoverPassword!: string | null;
 
 
     @ManyToOne(() => Situation, (situation) => situation.users)

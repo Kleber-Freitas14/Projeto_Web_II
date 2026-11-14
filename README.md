@@ -1,5 +1,3 @@
-README.md
-100%
 ## Requisitos
 
 * Node.js 22 ou superior - Conferir a versão: node -v

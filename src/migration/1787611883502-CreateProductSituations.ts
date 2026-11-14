@@ -1,3 +1,4 @@
+
 import { Table, TableForeignKey } from "typeorm";
 import type { MigrationInterface, QueryRunner } from "typeorm";
 
@@ -40,7 +41,7 @@ export class CreateProductSituations1787611883502 implements MigrationInterface 
                 new TableForeignKey({
                     columnNames: ["idProduct"],
                     referencedTableName: "products",
-                    referencedColumnNames: ["id"],
+                    referencedColumnNames: ["idProduct"],
                     onDelete: "CASCADE",
                     onUpdate: "CASCADE",
                 })
