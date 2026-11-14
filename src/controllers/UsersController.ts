@@ -141,7 +141,7 @@ router.post("/users", async (req: Request, res: Response) => {
         }
 
         // Criptografar a senha antes de salvar
-        data.password = await bcrypt.hash(data.password, 10)
+       // data.password = await bcrypt.hash(data.password, 10)
 
         //Criar um no registro
         const newUser =  userRepository.create(data);
@@ -207,7 +207,7 @@ router.put("/users-password/:id", async (req: Request, res: Response) => {
             });
         }
 
-        user.password = await bcrypt.hash(data.password, 10);
+       // user.password = await bcrypt.hash(data.password, 10);
 
         await userRepository.save(user);
 
