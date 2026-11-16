@@ -81,6 +81,8 @@ export function verifyToken(
 
     } catch (error) {
 
+        console.error("ERRO NA VALIDAÇÃO DO TOKEN:", error);
+
         res.status(401).json({
             message: "Token inválido ou expirado!",
         });

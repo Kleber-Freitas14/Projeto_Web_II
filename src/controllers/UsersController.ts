@@ -39,7 +39,7 @@ router.get("/users", verifyToken, async (req: Request, res: Response) => {
         const limit = Number (req.query.limit) || 10;
 
         //Usar serviço de paginação 
-        const result = await PaginationService.paginate(userRepository, page, limit, {id: "DESC"});
+    const result = await PaginationService.paginate(userRepository, page, limit, {id: "DESC"}, ["situation"]);
 
         //Retornar a resposta com os dados e informações da paginação
         res.status(200).json(result);
@@ -58,38 +58,52 @@ router.get("/users", verifyToken, async (req: Request, res: Response) => {
 //Rota para visualizar um usiário específico
 //Endereço para casar a API através da aplicação com o vervo GET: http://localhost:8080/users/:id
 
-router.get("/users/:id", async (req: Request, res: Response) => {
-    try{
-        //Obter o ID do usuário a partir dos parâmetro da requisição
-        const {id}= req.params;
 
-        //Obter o respositório da entidade User
-        const userRepository = AppDataSource.getRepository(User)
+// Rota para visualizar um usuário específico
+router.get("/users/:id", verifyToken, async (req: Request, res: Response) => {
+    try {
+        // Obter o ID do usuário
+        const userId = Number(req.params.id);
 
-        //Buscar o ususário no banco de dados pelo ID
-        const userId = Number(id);
-
-        const user = await userRepository.findOneBy({ id: userId });
-
-        //Verificar se o usuário foi encontrado
-        if(!user){
-            res.status(404).json({
-                message: "Ususário não encontrado!"
+        // Validar o ID
+        if (!Number.isInteger(userId) || userId < 1) {
+            return res.status(400).json({
+                message: "ID do usuário inválido!"
             });
-            return;
         }
 
-        //Retornar ao usuário encontrado
-        res.status(200).json(user);
-        return;
-        
-    } catch(error){
-        //Retornar erro em caso de falha
-        res.status(500).json({
+        // Obter o repositório
+        const userRepository = AppDataSource.getRepository(User);
+
+        // Buscar o usuário incluindo o relacionamento Situation
+        const user = await userRepository.findOne({
+            relations: {
+                situation: true
+            },
+            where: {
+                id: userId
+            }
+        });
+
+        // Verificar se encontrou
+        if (!user) {
+            return res.status(404).json({
+                message: "Usuário não encontrado!"
+            });
+        }
+
+        // Retornar usuário e relacionamento
+        return res.status(200).json(user);
+
+    } catch (error) {
+        console.error("Erro ao visualizar usuário:", error);
+
+        return res.status(500).json({
             message: "Erro ao visualizar o usuário!"
         });
     }
 });
+
 
 
 // Criar a rota para cadastrar usuário

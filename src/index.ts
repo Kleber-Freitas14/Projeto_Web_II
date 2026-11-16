@@ -25,10 +25,10 @@ console.log(">>> INDEX.TS ATUAL ESTÁ SENDO EXECUTADO <<<");
 //Criar o midldleware para permitir requição externa
 app.use(cors());
 
-
 // Configurar recebimento de dados
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 
 // DIAGNÓSTICO TEMPORÁRIO
 app.use((req, res, next) => {
@@ -41,6 +41,9 @@ app.use((req, res, next) => {
 
     next();
 });
+
+
+
 
 // Criar as Rotas
 app.use("/", TesteConnectionController);

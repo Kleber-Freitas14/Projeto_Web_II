@@ -9,6 +9,7 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
+import { verifyToken } from "../middlewares/authMiddleware.js";
 
 dotenv.config();
 
@@ -20,6 +21,7 @@ router.post("/", (req: Request, res: Response) => {
 });
 
 // ROTA POST - LOGIN
+
 router.post("/login", async (req: Request, res: Response) => {
   try {
     const schema = yup.object({
@@ -41,7 +43,10 @@ router.post("/login", async (req: Request, res: Response) => {
       });
     }
 
-    const senhaValida = await bcrypt.compare(data.password, user.password);
+    const senhaValida = await bcrypt.compare(
+      data.password,
+      user.password
+    );
 
     if (!senhaValida) {
       return res.status(401).json({
@@ -57,12 +62,17 @@ router.post("/login", async (req: Request, res: Response) => {
       });
     }
 
-    const token = jwt.sign({ id: user.id }, secret, { expiresIn: "1d" });
+    const token = jwt.sign(
+      { id: user.id },
+      secret,
+      { expiresIn: "1d" }
+    );
 
     return res.status(200).json({
       message: "Login realizado com sucesso!",
       token,
     });
+
   } catch (error: unknown) {
     if (error instanceof yup.ValidationError) {
       return res.status(400).json({
@@ -77,6 +87,66 @@ router.post("/login", async (req: Request, res: Response) => {
     });
   }
 });
+
+
+// Criar a rota para validar o token
+// Endereço a para acessar a API através da aolicação externa com o verbo GET: http://localhost:8080/validate-token
+// Enviar o Bearer Token do usuário logado, exmplo: Bearer <colocar o tojen gerado nom jwt?
+
+
+router.get("/validate-token", verifyToken, async (req: Request, res: Response) => {
+    res.status(200).json({
+        message: "Token válido!",
+        userId: (req as any).user.id,
+    });
+
+
+});
+
+
+
+router.put("/test-password", async (req: Request, res: Response) => {
+  try {
+    const email = "kleber@kleber.com";
+    const novaSenha = "123456";
+
+    const userRepository = AppDataSource.getRepository(User);
+
+    const user = await userRepository.findOne({
+      where: { email },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "Usuário não encontrado!",
+      });
+    }
+
+    const novoHash = await bcrypt.hash(novaSenha, 10);
+
+    user.password = novoHash;
+
+    await userRepository.save(user);
+
+    return res.status(200).json({
+      message: "Senha atualizada com sucesso!",
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Erro ao atualizar senha!",
+    });
+  }
+});
+
+
+
+
+
+
+
 
 // ROTA POST - RECUPERAR SENHA
 router.post("/recover-password", async (req: Request, res: Response) => {
@@ -196,6 +266,7 @@ router.post("/recover-password", async (req: Request, res: Response) => {
   }
 });
 
+
 // Criar a rota para validar a chave recuperar a senha
 // Endereço para acessar a API através da aplicação externa com o verbo POST: htttp://localhost:8080/validate-recover-password
 // A aplicação externa deve indicar que está enviando os dados em formato de objeyo: Content-Type: application/json
@@ -208,9 +279,7 @@ router.post("/recover-password", async (req: Request, res: Response) => {
     */
 
 // ROTA POST - VALIDAR CHAVE DE RECUPERAÇÃO DE SENHA
-router.post(
-  "/validate-recover-password",
-  async (req: Request, res: Response) => {
+router.post(  "/validate-recover-password",  async (req: Request, res: Response) => {
     try {
       const schema = yup.object({
         recoverPassword: yup

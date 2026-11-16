@@ -9,6 +9,7 @@ import { PaginationService } from "../services/PaginationService.js";
 const router = express.Router();
 
 // GET - Listar todos os produtos
+// Verbo GET: http://localhost8080:products?page=1&limit=10
 router.get("/Products", async (req: Request, res: Response) => {
     try {
         const productRepository =
