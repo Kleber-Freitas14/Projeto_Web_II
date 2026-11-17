@@ -11,6 +11,7 @@ import ProductCategoriesController from "./controllers/ProductCategoriesControll
 import ProductsController from "./controllers/ProductsController.js";
 import ProductSituationsController from "./controllers/ProductSituationsController.js";
 import { AppDataSource } from "./data-source.js";
+import { verifyToken } from "./middlewares/authMiddleware.js";
 
 
 // importar biblioteca para conexão externa
@@ -46,9 +47,14 @@ app.use((req, res, next) => {
 
 
 
-// Criar as Rotas
+// ROTAS PÚBLICAS
 app.use("/", TesteConnectionController);
 app.use("/", AuthController);
+
+// PROTEGER AS DEMAIS ROTAS COM JWT
+app.use(verifyToken);
+
+// ROTAS PROTEGIDAS
 app.use("/", SituationsController);
 app.use("/", ProductCategoriesController);
 app.use("/", ProductsController);

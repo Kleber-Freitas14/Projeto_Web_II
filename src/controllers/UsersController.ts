@@ -46,8 +46,17 @@ router.get("/users", verifyToken, async (req: Request, res: Response) => {
       { situation: true },
     );
 
-    //Retornar a resposta com os dados e informações da paginação
-    res.status(200).json(result);
+    // Remover informações sensíveis antes de retornar os usuários
+    const usuarios = result.data.map((user) => {
+      const { password, recoverPassword, ...dadosPublicos } = user;
+      return dadosPublicos;
+    });
+
+    // Retornar os dados sem informações sensíveis
+    res.status(200).json({
+      ...result,
+      data: usuarios,
+    });
     return;
   } catch (error) {
     //Retornar erro e caso de falha
@@ -94,8 +103,11 @@ router.get("/users/:id", verifyToken, async (req: Request, res: Response) => {
       });
     }
 
-    // Retornar usuário e relacionamento
-    return res.status(200).json(user);
+    // Remover informações sensíveis
+    const { password, recoverPassword, ...dadosPublicos } = user;
+
+    // Retornar usuário sem informações sensíveis
+    return res.status(200).json(dadosPublicos);
   } catch (error) {
     console.error("Erro ao visualizar usuário:", error);
 
@@ -164,18 +176,24 @@ router.post("/users", async (req: Request, res: Response) => {
     }
 
     // Criptografar a senha antes de salvar
-    // data.password = await bcrypt.hash(data.password, 10)
+    data.password = await bcrypt.hash(data.password, 10);
 
-    //Criar um no registro
-    const newUser = userRepository.create(data);
+    // Criar um novo registro
+    const newUser = userRepository.create();
+
+    // Atribuir os dados recebidos ao novo usuário
+    Object.assign(newUser, data);
 
     //Salvar o registro no BD
     await userRepository.save(newUser);
 
-    //Retornar resposta com sucesso
+    // Remover informações sensíveis
+    const { password, recoverPassword, ...dadosPublicos } = newUser;
+
+    // Retornar resposta com sucesso
     res.status(201).json({
-      message: "Usuário carastrado com sucesso!",
-      situation: newUser,
+      message: "Usuário cadastrado com sucesso!",
+      user: dadosPublicos,
     });
   } catch (error) {
     if (error instanceof yup.ValidationError) {
@@ -230,7 +248,8 @@ router.put("/users-password/:id", async (req: Request, res: Response) => {
       });
     }
 
-    // user.password = await bcrypt.hash(data.password, 10);
+    // Criptografar a nova senha antes de salvar
+    user.password = await bcrypt.hash(data.password, 10);
 
     await userRepository.save(user);
 
@@ -327,10 +346,13 @@ router.put("/users/:id", async (req: Request, res: Response) => {
     //Salvar as alterações no BD
     const updateUser = await userRepository.save(user);
 
+    // Remover informações sensíveis
+    const { password, recoverPassword, ...dadosPublicos } = updateUser;
+
     // Retornar resposta de sucesso
     res.status(200).json({
       message: "Usuário atualizado com sucesso!",
-      user: updateUser,
+      user: dadosPublicos,
     });
   } catch (error) {
     if (error instanceof yup.ValidationError) {
