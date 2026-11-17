@@ -39,12 +39,5 @@ export const AppDataSource = new DataSource({
     migrations: [
         join(__dirname, "migration", "*.js")
     ],
-})
-
-// Criando a inicialização da conexão com o BD
-AppDataSource.initialize().then(()=>{
-    console.log("Conexão Com o Banco de Dados Realizado Com Sucesso!")
-}).catch((error: unknown)=>{
-    console.log("Erro Na Conexão Com o Bando de Dados!");
-    console.error(error);
 });
+

@@ -1,3 +1,4 @@
+
 import {
     Entity,
     PrimaryGeneratedColumn,
@@ -5,24 +6,71 @@ import {
     ManyToOne,
     JoinColumn,
 } from "typeorm";
+
+import type { Relation } from "typeorm";
 import { ProductCategory } from "./productCategories.js";
+import { ProductSituation } from "./productSituations.js";
 
 @Entity("products")
 export class Product {
 
     @PrimaryGeneratedColumn()
-    idProduct!: number;
+    id!: number;
 
-    @Column({ length: 100 })
-    nameProduct!: string;
+    @Column({
+        type: "varchar",
+        length: 255,
+        nullable: false,
+    })
+    name!: string;
 
-    @Column({unique: true})
+    @Column({
+        type: "varchar",
+        length: 255,
+        unique: true,
+        nullable: false,
+    })
     slug!: string;
 
-    @Column("decimal", { precision: 10, scale: 2 })
-    priceProduct!: number;
+    @Column({
+        type: "longtext",
+        nullable: false,
+    })
+    description!: string;
 
-    @ManyToOne(() => ProductCategory)
-    @JoinColumn({ name: "idProductCategory" })
-    productCategory!: ProductCategory;
+    @Column("decimal", {
+        precision: 10,
+        scale: 2,
+        nullable: false,
+    })
+    price!: number;
+
+    @ManyToOne(
+        () => ProductCategory,
+        (category) => category.products,
+        { nullable: false, onDelete: "RESTRICT" }
+    )
+    @JoinColumn({ name: "productCategoryId" })
+    productCategory!: Relation<ProductCategory>;
+
+    @ManyToOne(
+        () => ProductSituation,
+        (situation) => situation.products,
+        { nullable: false, onDelete: "RESTRICT" }
+    )
+    @JoinColumn({ name: "productSituationId" })
+    productSituation!: Relation<ProductSituation>;
+
+    @Column({
+        type: "timestamp",
+        default: () => "CURRENT_TIMESTAMP",
+    })
+    createdAt!: Date;
+
+    @Column({
+        type: "timestamp",
+        default: () => "CURRENT_TIMESTAMP",
+        onUpdate: "CURRENT_TIMESTAMP",
+    })
+    updatedAt!: Date;
 }

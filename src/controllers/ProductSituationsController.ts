@@ -1,280 +1,150 @@
 
 import express, { type Request, type Response } from "express";
+
 import { AppDataSource } from "../data-source.js";
 import { ProductSituation } from "../entity/productSituations.js";
-import { Product } from "../entity/products.js";
-import { Situation } from "../entity/situations.js";
 import { PaginationService } from "../services/PaginationService.js";
 
-// Criar a aplicação Express
 const router = express.Router();
 
-// GET - Listar todas as relações produto/situação
+const productSituationRepository =
+    AppDataSource.getRepository(ProductSituation);
+
+// LISTAR SITUAÇÕES
 router.get("/ProductSituations", async (req: Request, res: Response) => {
     try {
-
-        const productSituationRepository =
-            AppDataSource.getRepository(ProductSituation);
-
         const page = Number(req.query.page) || 1;
-
         const limit = Number(req.query.limit) || 10;
 
         const result = await PaginationService.paginate(
             productSituationRepository,
             page,
             limit,
-            { idProductSituation: "DESC" }
+            { id: "DESC" }
         );
 
-        res.status(200).json(result);
-        return;
-
+        return res.status(200).json(result);
     } catch (error) {
-
-        console.error("Erro ao listar situações dos produtos:", error);
-
-        res.status(500).json({
-            mensagem: "Erro ao listar situações dos produtos!"
+        return res.status(500).json({
+            message: "Erro ao listar situações dos produtos!",
+            error,
         });
-
-        return;
     }
 });
 
-// GET - Visualizar uma relação pelo ID
+// BUSCAR SITUAÇÃO POR ID
 router.get("/ProductSituations/:id", async (req: Request, res: Response) => {
     try {
-
-        const id = req.params.id as string;
-
-        const productSituationRepository =
-            AppDataSource.getRepository(ProductSituation);
+        const id = Number(req.params.id);
 
         const productSituation =
-            await productSituationRepository.findOneBy({
-                idProductSituation: parseInt(id)
-            });
+            await productSituationRepository.findOneBy({ id });
 
         if (!productSituation) {
-            res.status(404).json({
-                mensagem: "Relação produto/situação não encontrada!"
+            return res.status(404).json({
+                message: "Situação não encontrada!",
             });
-            return;
         }
 
-        res.status(200).json(productSituation);
-        return;
-
+        return res.status(200).json(productSituation);
     } catch (error) {
-
-        console.error("Erro ao buscar situação do produto:", error);
-
-        res.status(500).json({
-            mensagem: "Erro ao visualizar situação do produto!"
+        return res.status(500).json({
+            message: "Erro ao buscar situação!",
+            error,
         });
-
-        return;
     }
 });
 
-// POST - Associar produto a uma situação
+// CADASTRAR SITUAÇÃO
 router.post("/ProductSituations", async (req: Request, res: Response) => {
     try {
+        const { name } = req.body;
 
-        console.log("Dados recebidos:", req.body);
-
-        const {
-            idProduct,
-            idSituation
-        } = req.body ?? {};
-
-        if (!idProduct || !idSituation) {
-            res.status(400).json({
-                mensagem: "Os campos idProduct e idSituation são obrigatórios!"
+        if (!name || typeof name !== "string" || !name.trim()) {
+            return res.status(400).json({
+                message: "O nome da situação é obrigatório!",
             });
-            return;
         }
 
-        const productRepository =
-            AppDataSource.getRepository(Product);
-
-        const situationRepository =
-            AppDataSource.getRepository(Situation);
-
-        const productSituationRepository =
-            AppDataSource.getRepository(ProductSituation);
-
-        const product = await productRepository.findOneBy({
-            idProduct: parseInt(idProduct)
+        const productSituation = productSituationRepository.create({
+            name: name.trim(),
         });
 
-        if (!product) {
-            res.status(404).json({
-                mensagem: "Produto não encontrado!"
-            });
-            return;
-        }
+        await productSituationRepository.save(productSituation);
 
-        const situation = await situationRepository.findOneBy({
-            id: parseInt(idSituation)
+        return res.status(201).json({
+            message: "Situação cadastrada com sucesso!",
+            data: productSituation,
         });
-
-        if (!situation) {
-            res.status(404).json({
-                mensagem: "Situação não encontrada!"
-            });
-            return;
-        }
-
-        const newProductSituation =
-            productSituationRepository.create({
-                product,
-                situation
-            });
-
-        await productSituationRepository.save(newProductSituation);
-
-        res.status(201).json({
-            mensagem: "Situação do produto cadastrada com sucesso!",
-            productSituation: newProductSituation
-        });
-
-        return;
-
     } catch (error) {
-
-        console.error("Erro ao cadastrar situação do produto:", error);
-
-        res.status(500).json({
-            mensagem: "Erro ao cadastrar situação do produto!"
+        return res.status(500).json({
+            message: "Erro ao cadastrar situação!",
+            error,
         });
-
-        return;
     }
 });
 
-// PUT - Alterar a situação do produto
+// ATUALIZAR SITUAÇÃO
 router.put("/ProductSituations/:id", async (req: Request, res: Response) => {
     try {
-
-        const id = req.params.id as string;
-
-        const { idProduct, idSituation } = req.body ?? {};
-
-        const productSituationRepository =
-            AppDataSource.getRepository(ProductSituation);
-
-        const productRepository =
-            AppDataSource.getRepository(Product);
-
-        const situationRepository =
-            AppDataSource.getRepository(Situation);
+        const id = Number(req.params.id);
+        const { name } = req.body;
 
         const productSituation =
-            await productSituationRepository.findOneBy({
-                idProductSituation: parseInt(id)
-            });
+            await productSituationRepository.findOneBy({ id });
 
         if (!productSituation) {
-            res.status(404).json({
-                mensagem: "Relação produto/situação não encontrada!"
+            return res.status(404).json({
+                message: "Situação não encontrada!",
             });
-            return;
         }
 
-        if (idProduct !== undefined) {
-
-            const product = await productRepository.findOneBy({
-                idProduct: parseInt(idProduct)
+        if (!name || typeof name !== "string" || !name.trim()) {
+            return res.status(400).json({
+                message: "O nome da situação é obrigatório!",
             });
-
-            if (!product) {
-                res.status(404).json({
-                    mensagem: "Produto não encontrado!"
-                });
-                return;
-            }
-
-            productSituation.product = product;
         }
 
-        if (idSituation !== undefined) {
+        productSituation.name = name.trim();
 
-            const situation = await situationRepository.findOneBy({
-                id: parseInt(idSituation)
-            });
+        await productSituationRepository.save(productSituation);
 
-            if (!situation) {
-                res.status(404).json({
-                    mensagem: "Situação não encontrada!"
-                });
-                return;
-            }
-
-            productSituation.situation = situation;
-        }
-
-        const updatedProductSituation =
-            await productSituationRepository.save(productSituation);
-
-        res.status(200).json({
-            mensagem: "Situação do produto atualizada com sucesso!",
-            productSituation: updatedProductSituation
+        return res.status(200).json({
+            message: "Situação atualizada com sucesso!",
+            data: productSituation,
         });
-
-        return;
-
     } catch (error) {
-
-        console.error("Erro ao atualizar situação do produto:", error);
-
-        res.status(500).json({
-            mensagem: "Erro ao atualizar situação do produto!"
+        return res.status(500).json({
+            message: "Erro ao atualizar situação!",
+            error,
         });
-
-        return;
     }
 });
 
-// DELETE - Remover relação produto/situação
+// EXCLUIR SITUAÇÃO
 router.delete("/ProductSituations/:id", async (req: Request, res: Response) => {
     try {
-
-        const id = req.params.id as string;
-
-        const productSituationRepository =
-            AppDataSource.getRepository(ProductSituation);
+        const id = Number(req.params.id);
 
         const productSituation =
-            await productSituationRepository.findOneBy({
-                idProductSituation: parseInt(id)
-            });
+            await productSituationRepository.findOneBy({ id });
 
         if (!productSituation) {
-            res.status(404).json({
-                mensagem: "Relação produto/situação não encontrada!"
+            return res.status(404).json({
+                message: "Situação não encontrada!",
             });
-            return;
         }
 
         await productSituationRepository.remove(productSituation);
 
-        res.status(200).json({
-            mensagem: "Situação do produto removida com sucesso!"
+        return res.status(200).json({
+            message: "Situação excluída com sucesso!",
         });
-
-        return;
-
     } catch (error) {
-
-        console.error("Erro ao remover situação do produto:", error);
-
-        res.status(500).json({
-            mensagem: "Erro ao remover situação do produto!"
+        return res.status(500).json({
+            message: "Erro ao excluir situação! Verifique se existem produtos utilizando essa situação.",
+            error,
         });
-
-        return;
     }
 });
 

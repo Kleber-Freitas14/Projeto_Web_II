@@ -10,6 +10,7 @@ import SituationsController from "./controllers/SituationsController.js";
 import ProductCategoriesController from "./controllers/ProductCategoriesController.js";
 import ProductsController from "./controllers/ProductsController.js";
 import ProductSituationsController from "./controllers/ProductSituationsController.js";
+import { AppDataSource } from "./data-source.js";
 
 
 // importar biblioteca para conexão externa
@@ -54,9 +55,19 @@ app.use("/", ProductsController);
 app.use("/", ProductSituationsController);
 app.use("/", UsersController);
 
-// Iniciar servidor
+// Iniciar servidor após conectar ao banco de dados
 const PORT = process.env.PORT || 8080;
 
-app.listen(PORT, () => {
-    console.log(`Servidor iniciado na porta ${PORT}: http://localhost:${PORT}/Situations`);
-});
+AppDataSource.initialize()
+    .then(() => {
+        console.log("Conexão com o Banco de Dados realizada com sucesso!");
+
+        app.listen(PORT, () => {
+            console.log(
+                `Servidor iniciado na porta ${PORT}: http://localhost:${PORT}/Situations`
+            );
+        });
+    })
+    .catch((error: unknown) => {
+        console.error("Erro ao conectar ao Banco de Dados:", error);
+    });

@@ -1,47 +1,64 @@
-import { DataSource } from "typeorm";
+
+import { AppDataSource } from "../data-source.js";
 import { Product } from "../entity/products.js";
+import { ProductCategory } from "../entity/productCategories.js";
+import { ProductSituation } from "../entity/productSituations.js";
 
-export default class CreateProductsSeeds {
+export async function CreateProductsSeeds() {
 
-    public async run(datasource: DataSource): Promise<void> {
+    const productRepository = AppDataSource.getRepository(Product);
+    const categoryRepository = AppDataSource.getRepository(ProductCategory);
+    const situationRepository = AppDataSource.getRepository(ProductSituation);
 
-        console.log("Iniciando o seed para a tabela 'products'...");
+    const category = await categoryRepository.findOne({
+        where: { name: "Informática" }
+    });
 
-        const productRepository = datasource.getRepository(Product);
+    const situation = await situationRepository.findOne({
+        where: { name: "Ativo" }
+    });
 
-        const existingCount = await productRepository.count();
+    if (!category || !situation) {
+        throw new Error(
+            "Cadastre uma categoria e uma situação antes dos produtos!"
+        );
+    }
 
-        if (existingCount > 0) {
-            console.log("A tabela 'products' já possui dados. Nenhuma alteração foi realizada!");
-            return;
+    const products = [
+        {
+            name: "Notebook",
+            slug: "notebook",
+            description: "Notebook para uso pessoal e profissional.",
+            price: 3500.00,
+            productCategory: category,
+            productSituation: situation,
+        },
+        {
+            name: "Smartphone",
+            slug: "smartphone",
+            description: "Smartphone para comunicação e aplicativos.",
+            price: 1800.00,
+            productCategory: category,
+            productSituation: situation,
+        },
+    ];
+
+    for (const product of products) {
+
+        const existingProduct = await productRepository.findOne({
+            where: { slug: product.slug }
+        });
+
+        if (!existingProduct) {
+
+            await productRepository.save(product);
+
+            console.log(`Produto ${product.name} cadastrado com sucesso!`);
+
+        } else {
+
+            console.log(`Produto ${product.name} já existe. Nenhuma alteração realizada!`);
+
         }
-
-        const products = [
-            {
-                nameProduct: "Notebook",
-                priceProduct: 3500.00,
-                productCategory: {
-                    idProductCategory: 1
-                }
-            },
-            {
-                nameProduct: "Mouse",
-                priceProduct: 80.00,
-                productCategory: {
-                    idProductCategory: 3
-                }
-            },
-            {
-                nameProduct: "Teclado",
-                priceProduct: 150.00,
-                productCategory: {
-                    idProductCategory: 3
-                }
-            }
-        ];
-
-        await productRepository.save(products);
-
-        console.log("Seed concluído com sucesso: Produtos cadastrados!");
     }
 }

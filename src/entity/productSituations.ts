@@ -1,23 +1,40 @@
+
 import {
     Entity,
     PrimaryGeneratedColumn,
-    ManyToOne,
-    JoinColumn,
+    Column,
+    OneToMany,
 } from "typeorm";
+
+import type { Relation } from "typeorm";
 import { Product } from "./products.js";
-import { Situation } from "./situations.js";
 
 @Entity("product_situations")
 export class ProductSituation {
 
     @PrimaryGeneratedColumn()
-    idProductSituation!: number;
+    id!: number;
 
-    @ManyToOne(() => Product)
-    @JoinColumn({ name: "idProduct" })
-    product!: Product;
+    @Column({
+        type: "varchar",
+        length: 255,
+        nullable: false,
+    })
+    name!: string;
 
-    @ManyToOne(() => Situation)
-    @JoinColumn({ name: "idSituation" })
-    situation!: Situation;
+    @Column({
+        type: "timestamp",
+        default: () => "CURRENT_TIMESTAMP",
+    })
+    createdAt!: Date;
+
+    @Column({
+        type: "timestamp",
+        default: () => "CURRENT_TIMESTAMP",
+        onUpdate: "CURRENT_TIMESTAMP",
+    })
+    updatedAt!: Date;
+
+    @OneToMany(() => Product, (product) => product.productSituation)
+    products!: Relation<Product[]>;
 }

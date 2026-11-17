@@ -1,43 +1,34 @@
-import { DataSource } from "typeorm";
+
+import { AppDataSource } from "../data-source.js";
 import { ProductSituation } from "../entity/productSituations.js";
 
-export default class CreateProductSituationsSeeds {
+export async function CreateProductSituationsSeeds() {
 
-    public async run(datasource: DataSource): Promise<void> {
+    const productSituationRepository =
+        AppDataSource.getRepository(ProductSituation);
 
-        console.log("Iniciando o seed para a tabela 'product_situations'...");
+    const productSituations = [
+        "Ativo",
+        "Inativo",
+        "Descontinuado",
+    ];
 
-        const productSituationRepository =
-            datasource.getRepository(ProductSituation);
+    for (const name of productSituations) {
 
-        const existingCount = await productSituationRepository.count();
+        const existingSituation = await productSituationRepository.findOne({
+            where: { name }
+        });
 
-        if (existingCount > 0) {
-            console.log(
-                "A tabela 'product_situations' já possui dados. Nenhuma alteração foi realizada!"
-            );
-            return;
+        if (!existingSituation) {
+
+            await productSituationRepository.save({ name });
+
+            console.log(`Situação ${name} cadastrada com sucesso!`);
+
+        } else {
+
+            console.log(`Situação ${name} já existe. Nenhuma alteração realizada!`);
+
         }
-
-        const productSituations = [
-            {
-                product: { idProduct: 1 },
-                situation: { id: 1 }
-            },
-            {
-                product: { idProduct: 2 },
-                situation: { id: 1 }
-            },
-            {
-                product: { idProduct: 3 },
-                situation: { id: 1 }
-            }
-        ];
-
-        await productSituationRepository.save(productSituations);
-
-        console.log(
-            "Seed concluído com sucesso: Situações dos produtos cadastradas!"
-        );
     }
 }

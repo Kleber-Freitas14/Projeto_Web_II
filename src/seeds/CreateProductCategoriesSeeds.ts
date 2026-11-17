@@ -1,30 +1,34 @@
 
-import { DataSource } from "typeorm";
+import { AppDataSource } from "../data-source.js";
 import { ProductCategory } from "../entity/productCategories.js";
 
-export default class CreateProductCategoriesSeeds {
+export async function CreateProductCategoriesSeeds() {
 
-    public async run(datasource: DataSource): Promise<void> {
+    const productCategoryRepository =
+        AppDataSource.getRepository(ProductCategory);
 
-        console.log("Iniciando o seed para a tabela 'product_categories'...");
+    const productCategories = [
+        "Informática",
+        "Eletrônicos",
+        "Eletrodomésticos",
+    ];
 
-        const productCategoryRepository = datasource.getRepository(ProductCategory);
+    for (const name of productCategories) {
 
-        const existingCount = await productCategoryRepository.count();
+        const existingCategory = await productCategoryRepository.findOne({
+            where: { name }
+        });
 
-        if (existingCount > 0) {
-            console.log("A tabela 'product_categories' já possui dados. Nenhuma alteração foi realizada!");
-            return;
+        if (!existingCategory) {
+
+            await productCategoryRepository.save({ name });
+
+            console.log(`Categoria ${name} cadastrada com sucesso!`);
+
+        } else {
+
+            console.log(`Categoria ${name} já existe. Nenhuma alteração realizada!`);
+
         }
-
-        const productCategories = [
-            { nameProductCategory: "Eletrônicos" },
-            { nameProductCategory: "Informática" },
-            { nameProductCategory: "Acessórios" }
-        ];
-
-        await productCategoryRepository.save(productCategories);
-
-        console.log("Seed concluído com sucesso: Categorias de produtos cadastradas!");
     }
 }
