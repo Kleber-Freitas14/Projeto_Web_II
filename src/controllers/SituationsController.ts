@@ -4,6 +4,8 @@ import { AppDataSource } from "../data-source.js";
 import { Situation } from "../entity/situations.js";
 import { PaginationService } from "../services/PaginationService.js";
 import * as yup from "yup";
+import { verifyAdmin } from "../middlewares/adminMiddleware.js";
+
 
 const router = express.Router();
 
@@ -92,7 +94,7 @@ router.get("/Situations/:id", async (req: Request, res: Response) => {
 });
 
 // POST - Cadastrar situação
-router.post("/Situations", async (req: Request, res: Response) => {
+router.post("/Situations", verifyAdmin, async (req: Request, res: Response) => {
     try {
         const data = await situationSchema.validate(req.body, {
             abortEarly: false,
@@ -150,7 +152,7 @@ router.post("/Situations", async (req: Request, res: Response) => {
 });
 
 // PUT - Atualizar situação
-router.put("/Situations/:id", async (req: Request, res: Response) => {
+router.put("/Situations/:id", verifyAdmin, async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id);
 
@@ -228,7 +230,7 @@ router.put("/Situations/:id", async (req: Request, res: Response) => {
 });
 
 // DELETE - Remover situação
-router.delete("/Situations/:id", async (req: Request, res: Response) => {
+router.delete("/Situations/:id", verifyAdmin, async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id);
 

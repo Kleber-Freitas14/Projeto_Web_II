@@ -15,10 +15,9 @@ import * as yup from "yup";
 
 //Importar o NOt para utilizar como restrição para ignorar o próprio ID na consulta
 import { Not } from "typeorm";
-import { parse } from "node:path";
-import { Situation } from "../entity/situations.js";
 
 import { verifyToken } from "../middlewares/authMiddleware.js";
+import { verifyAdmin } from "../middlewares/adminMiddleware.js";
 import bcrypt from "bcryptjs";
 
 // Criar a aplicação Express
@@ -48,7 +47,12 @@ router.get("/users", verifyToken, async (req: Request, res: Response) => {
 
     // Remover informações sensíveis antes de retornar os usuários
     const usuarios = result.data.map((user) => {
-      const { password, recoverPassword, ...dadosPublicos } = user;
+      const {
+        password,
+        recoverPassword,
+        recoverPasswordExpiresAt,
+        ...dadosPublicos
+      } = user;
       return dadosPublicos;
     });
 
@@ -104,7 +108,12 @@ router.get("/users/:id", verifyToken, async (req: Request, res: Response) => {
     }
 
     // Remover informações sensíveis
-    const { password, recoverPassword, ...dadosPublicos } = user;
+    const {
+      password,
+      recoverPassword,
+      recoverPasswordExpiresAt,
+      ...dadosPublicos
+    } = user;
 
     // Retornar usuário sem informações sensíveis
     return res.status(200).json(dadosPublicos);
@@ -130,8 +139,7 @@ router.get("/users/:id", verifyToken, async (req: Request, res: Response) => {
 }
 */
 
-router.post("/users", async (req: Request, res: Response) => {
-  console.log(">>> POST USERS ATUAL EXECUTADO <<<");
+router.post("/users", verifyAdmin, async (req: Request, res: Response) => {
   try {
     //Receber os dados enviados no corpo da requisição
     var data = req.body;
@@ -150,11 +158,9 @@ router.post("/users", async (req: Request, res: Response) => {
       password: yup
         .string()
         .required("O campo de senha é obrigatório!")
-        .min(6, "O campo senha dever ter no mínimo 6 caracteres!"),
+        .min(8, "O campo senha dever ter no mínimo 8 caracteres!"),
       situation: yup.number().required("O campo situação é obrigatório!"),
     });
-
-    console.log("DADOS RECEBIDOS:", data);
 
     //Verificar  se os dados passaram pela validação
     await schema.validate(data, { abortEarly: false });
@@ -182,13 +188,26 @@ router.post("/users", async (req: Request, res: Response) => {
     const newUser = userRepository.create();
 
     // Atribuir os dados recebidos ao novo usuário
-    Object.assign(newUser, data);
+    Object.assign(newUser, {
+      name: data.name,
+      email: data.email,
+      password: data.password,
+      situation: data.situation,
+    });
+
+    // Definir o tipo padrão como usuário comum
+    newUser.tipoUsuario = "USER";
 
     //Salvar o registro no BD
     await userRepository.save(newUser);
 
     // Remover informações sensíveis
-    const { password, recoverPassword, ...dadosPublicos } = newUser;
+    const {
+      password,
+      recoverPassword,
+      recoverPasswordExpiresAt,
+      ...dadosPublicos
+    } = newUser;
 
     // Retornar resposta com sucesso
     res.status(201).json({
@@ -217,57 +236,94 @@ router.post("/users", async (req: Request, res: Response) => {
 // A aplicação externa deve indicar que está enviando os dado em formato de obejto: Content-Type: application/json
 //Dados em formato de obejto
 
-router.put("/users-password/:id", async (req: Request, res: Response) => {
-  try {
-    const id = Number(req.params.id);
+router.put(
+  "/users-password/:id",
+  verifyToken,
+  async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
 
-    if (!Number.isInteger(id) || id < 1) {
-      return res.status(400).json({
-        message: "ID de usuário inválido!",
+      if (!Number.isInteger(id) || id < 1) {
+        return res.status(400).json({
+          message: "ID de usuário inválido!",
+        });
+      }
+
+      const schema = yup.object().shape({
+        password: yup
+          .string()
+          .required("O campo senha é obrigatório!")
+          .min(8, "A senha deve ter no mínimo 8 caracteres!"),
+      });
+
+      const data = await schema.validate(req.body, {
+        abortEarly: false,
+      });
+
+      const userRepository = AppDataSource.getRepository(User);
+
+      // Recuperar o ID do usuário autenticado pelo JWT
+      const usuarioAutenticado = (req as any).user;
+
+      if (!usuarioAutenticado || !Number.isInteger(usuarioAutenticado.id)) {
+        return res.status(401).json({
+          message: "Usuário não autenticado!",
+        });
+      }
+
+      // Buscar o usuário autenticado no banco
+      const administrador = await userRepository.findOne({
+        where: { id: usuarioAutenticado.id },
+      });
+
+      if (!administrador) {
+        return res.status(401).json({
+          message: "Usuário autenticado não encontrado!",
+        });
+      }
+
+      // Verificar se está alterando a própria senha
+      const alterandoPropriaSenha = usuarioAutenticado.id === id;
+
+      // Se for alterar a senha de outra pessoa, exigir ADMIN
+      if (!alterandoPropriaSenha && administrador.tipoUsuario !== "ADMIN") {
+        return res.status(403).json({
+          message: "Você não tem permissão para alterar a senha deste usuário!",
+        });
+      }
+
+      // Localizar o usuário cuja senha será alterada
+      const user = await userRepository.findOneBy({ id });
+
+      if (!user) {
+        return res.status(404).json({
+          message: "Usuário não encontrado!",
+        });
+      }
+
+      // Criptografar a nova senha
+      user.password = await bcrypt.hash(data.password, 10);
+
+      await userRepository.save(user);
+
+      return res.status(200).json({
+        message: "Senha atualizada com sucesso!",
+      });
+    } catch (error) {
+      if (error instanceof yup.ValidationError) {
+        return res.status(400).json({
+          message: error.errors,
+        });
+      }
+
+      console.error("Erro ao atualizar senha:", error);
+
+      return res.status(500).json({
+        message: "Erro ao atualizar senha!",
       });
     }
-
-    const schema = yup.object().shape({
-      password: yup
-        .string()
-        .required("O campo senha é obrigatório!")
-        .min(8, "A senha deve ter no mínimo 8 caracteres!"),
-    });
-
-    const data = await schema.validate(req.body, {
-      abortEarly: false,
-    });
-
-    const userRepository = AppDataSource.getRepository(User);
-
-    const user = await userRepository.findOneBy({ id });
-
-    if (!user) {
-      return res.status(404).json({
-        message: "Usuário não encontrado!",
-      });
-    }
-
-    // Criptografar a nova senha antes de salvar
-    user.password = await bcrypt.hash(data.password, 10);
-
-    await userRepository.save(user);
-
-    return res.status(200).json({
-      message: "Senha atualizada com sucesso!",
-    });
-  } catch (error) {
-    if (error instanceof yup.ValidationError) {
-      return res.status(400).json({
-        messagem: error.errors,
-      });
-    }
-
-    return res.status(500).json({
-      message: "Erro ao atualizar senha!",
-    });
-  }
-});
+  },
+);
 
 // Criar a rota para editar o usuário
 // Endereço para acessar a API através da aplicação externa com o verbo PUT: http://localhost:8080/users/:id
@@ -281,7 +337,7 @@ router.put("/users-password/:id", async (req: Request, res: Response) => {
 }
 */
 
-router.put("/users/:id", async (req: Request, res: Response) => {
+router.put("/users/:id", verifyAdmin, async (req: Request, res: Response) => {
   try {
     //Obter i ID da situação a partir dos parâmetros da requisição
     const id = Number(req.params.id);
@@ -340,14 +396,21 @@ router.put("/users/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    //Atualizar os dados do usuário
-    userRepository.merge(user, data);
+    // Atualizar somente os campos permitidos
+    user.name = data.name;
+    user.email = data.email;
+    user.situation = data.situation;
 
     //Salvar as alterações no BD
     const updateUser = await userRepository.save(user);
 
     // Remover informações sensíveis
-    const { password, recoverPassword, ...dadosPublicos } = updateUser;
+    const {
+      password,
+      recoverPassword,
+      recoverPasswordExpiresAt,
+      ...dadosPublicos
+    } = updateUser;
 
     // Retornar resposta de sucesso
     res.status(200).json({
@@ -373,44 +436,48 @@ router.put("/users/:id", async (req: Request, res: Response) => {
 // Criar a rota para apagar um usuário
 //Endereço para acessar a API através da aplicação externa com o verbo delete: http://localhost:8080/users/:id
 // Criar a rota para apagar um usuário
-router.delete("/users/:id", async (req: Request, res: Response) => {
-  try {
-    // Obter o ID do usuário
-    const id = Number(req.params.id);
+router.delete(
+  "/users/:id",
+  verifyAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      // Obter o ID do usuário
+      const id = Number(req.params.id);
 
-    // Validar o ID
-    if (!Number.isInteger(id) || id < 1) {
-      return res.status(400).json({
-        message: "ID inválido!",
+      // Validar o ID
+      if (!Number.isInteger(id) || id < 1) {
+        return res.status(400).json({
+          message: "ID inválido!",
+        });
+      }
+
+      // Obter o repositório
+      const userRepository = AppDataSource.getRepository(User);
+
+      // Excluir o usuário pelo ID
+      const resultado = await userRepository.delete(id);
+
+      // Verificar se algum registro foi excluído
+      if (resultado.affected === 0) {
+        return res.status(404).json({
+          message: "Usuário não encontrado!",
+        });
+      }
+
+      // Retornar sucesso
+      return res.status(200).json({
+        message: "Usuário apagado com sucesso!",
+        registrosExcluidos: resultado.affected,
+      });
+    } catch (error) {
+      console.error("Erro ao apagar usuário:", error);
+
+      return res.status(500).json({
+        message: "Erro ao apagar o usuário!",
       });
     }
-
-    // Obter o repositório
-    const userRepository = AppDataSource.getRepository(User);
-
-    // Excluir o usuário pelo ID
-    const resultado = await userRepository.delete(id);
-
-    // Verificar se algum registro foi excluído
-    if (resultado.affected === 0) {
-      return res.status(404).json({
-        message: "Usuário não encontrado!",
-      });
-    }
-
-    // Retornar sucesso
-    return res.status(200).json({
-      message: "Usuário apagado com sucesso!",
-      registrosExcluidos: resultado.affected,
-    });
-  } catch (error) {
-    console.error("Erro ao apagar usuário:", error);
-
-    return res.status(500).json({
-      message: "Erro ao apagar o usuário!",
-    });
-  }
-});
+  },
+);
 
 //Exportar a instrução que está dentro da constante router
 export default router;

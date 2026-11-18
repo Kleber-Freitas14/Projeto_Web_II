@@ -15,11 +15,6 @@ dotenv.config();
 
 const router = express.Router();
 
-// ROTA POST - PRINCIPAL
-router.post("/", (req: Request, res: Response) => {
-  return res.status(200).send("Bem-Vindo Pessoal alterado");
-});
-
 // ROTA POST - LOGIN
 
 router.post("/login", async (req: Request, res: Response) => {
@@ -35,6 +30,9 @@ router.post("/login", async (req: Request, res: Response) => {
 
     const user = await userRepository.findOne({
       where: { email: data.email },
+      relations: {
+        situation: true,
+      },
     });
 
     if (!user) {
@@ -43,10 +41,13 @@ router.post("/login", async (req: Request, res: Response) => {
       });
     }
 
-    const senhaValida = await bcrypt.compare(
-      data.password,
-      user.password
-    );
+    if (user.situation.nameSituation !== "Ativo") {
+      return res.status(403).json({
+        message: "Usuário inativo ou pendente. Procure o administrador!",
+      });
+    }
+
+    const senhaValida = await bcrypt.compare(data.password, user.password);
 
     if (!senhaValida) {
       return res.status(401).json({
@@ -62,17 +63,12 @@ router.post("/login", async (req: Request, res: Response) => {
       });
     }
 
-    const token = jwt.sign(
-      { id: user.id },
-      secret,
-      { expiresIn: "1d" }
-    );
+    const token = jwt.sign({ id: user.id }, secret, { expiresIn: "1d" });
 
     return res.status(200).json({
       message: "Login realizado com sucesso!",
       token,
     });
-
   } catch (error: unknown) {
     if (error instanceof yup.ValidationError) {
       return res.status(400).json({
@@ -88,65 +84,20 @@ router.post("/login", async (req: Request, res: Response) => {
   }
 });
 
-
 // Criar a rota para validar o token
 // Endereço a para acessar a API através da aolicação externa com o verbo GET: http://localhost:8080/validate-token
 // Enviar o Bearer Token do usuário logado, exmplo: Bearer <colocar o tojen gerado nom jwt?
 
-
-router.get("/validate-token", verifyToken, async (req: Request, res: Response) => {
+router.get(
+  "/validate-token",
+  verifyToken,
+  async (req: Request, res: Response) => {
     res.status(200).json({
-        message: "Token válido!",
-        userId: (req as any).user.id,
+      message: "Token válido!",
+      userId: (req as any).user.id,
     });
-
-
-});
-
-
-
-router.put("/test-password", async (req: Request, res: Response) => {
-  try {
-    const email = "kleber@kleber.com";
-    const novaSenha = "123456";
-
-    const userRepository = AppDataSource.getRepository(User);
-
-    const user = await userRepository.findOne({
-      where: { email },
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        message: "Usuário não encontrado!",
-      });
-    }
-
-    const novoHash = await bcrypt.hash(novaSenha, 10);
-
-    user.password = novoHash;
-
-    await userRepository.save(user);
-
-    return res.status(200).json({
-      message: "Senha atualizada com sucesso!",
-    });
-
-  } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      message: "Erro ao atualizar senha!",
-    });
-  }
-});
-
-
-
-
-
-
-
+  },
+);
 
 // ROTA POST - RECUPERAR SENHA
 router.post("/recover-password", async (req: Request, res: Response) => {
@@ -174,8 +125,9 @@ router.post("/recover-password", async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({
-        message: "Usuário não encontrado!",
+      return res.status(200).json({
+        message:
+          "Se o e-mail estiver cadastrado, você receberá as instruções de recuperação.",
       });
     }
 
@@ -243,13 +195,15 @@ router.post("/recover-password", async (req: Request, res: Response) => {
     // Enviar e-mail
     await transporter.sendMail(messageContent);
 
-    // Salvar chave somente após o envio do e-mail
+    // Salvar chave e prazo de validade de 30 minutos
     user.recoverPassword = chaveRecuperacao;
+
+    user.recoverPasswordExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
     await userRepository.save(user);
 
     return res.status(200).json({
       message: "E-mail enviado! Verifique sua caixa de entrada!",
-      urlRecoverPassword: linkRecuperacao,
     });
   } catch (error: unknown) {
     if (error instanceof yup.ValidationError) {
@@ -266,7 +220,6 @@ router.post("/recover-password", async (req: Request, res: Response) => {
   }
 });
 
-
 // Criar a rota para validar a chave recuperar a senha
 // Endereço para acessar a API através da aplicação externa com o verbo POST: htttp://localhost:8080/validate-recover-password
 // A aplicação externa deve indicar que está enviando os dados em formato de objeyo: Content-Type: application/json
@@ -279,7 +232,9 @@ router.post("/recover-password", async (req: Request, res: Response) => {
     */
 
 // ROTA POST - VALIDAR CHAVE DE RECUPERAÇÃO DE SENHA
-router.post(  "/validate-recover-password",  async (req: Request, res: Response) => {
+router.post(
+  "/validate-recover-password",
+  async (req: Request, res: Response) => {
     try {
       const schema = yup.object({
         recoverPassword: yup
@@ -308,6 +263,20 @@ router.post(  "/validate-recover-password",  async (req: Request, res: Response)
       if (!user) {
         return res.status(404).json({
           message: "A chave de recuperação é inválida ou já foi utilizada!",
+        });
+      }
+
+      if (
+        !user.recoverPasswordExpiresAt ||
+        user.recoverPasswordExpiresAt.getTime() < Date.now()
+      ) {
+        user.recoverPassword = null;
+        user.recoverPasswordExpiresAt = null;
+
+        await userRepository.save(user);
+
+        return res.status(400).json({
+          message: "A chave de recuperação expirou! Solicite uma nova.",
         });
       }
 
@@ -341,70 +310,6 @@ router.post(  "/validate-recover-password",  async (req: Request, res: Response)
     "password": "12345"
 }
 */
-router.put("/update-password", async (req: Request, res: Response) => {
-  try {
-    const schema = yup.object({
-      recoverPassword: yup
-        .string()
-        .trim()
-        .required("A chave de recuperação é obrigatória!"),
-
-      email: yup
-        .string()
-        .trim()
-        .email("E-mail inválido!")
-        .required("O e-mail é obrigatório!"),
-      password: yup
-        .string()
-        .required("O campo de senha é obrigatório!")
-        .min(6, "O campo senha dever ter no mínimo 6 caracteres!"),
-    });
-
-    const data = await schema.validate(req.body, {
-      abortEarly: false,
-    });
-
-    const userRepository = AppDataSource.getRepository(User);
-
-    const user = await userRepository.findOne({
-      where: {
-        email: data.email,
-        recoverPassword: data.recoverPassword,
-      },
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        message: "A chave de recuperação é inválida ou já foi utilizada!",
-      });
-      return;
-    }
-    // Atribuir valor nulo para a coluna recoverPassword
-    user.recoverPassword = null;
-
-    // Atulizar os dados do usuário
-    user.password = await bcrypt.hash(data.password, 10);
-
-    //Salvar as altereções no banco de dados
-    await userRepository.save(user);
-
-    res.status(200).json({
-      message: "Senha atulizada com sucesso!",
-    });
-  } catch (error: unknown) {
-    if (error instanceof yup.ValidationError) {
-      return res.status(400).json({
-        message: error.errors,
-      });
-    }
-
-    console.error("Erro ao validar chave de recuperação:", error);
-
-    return res.status(500).json({
-      message: "Erro ao validar a chave de recuperação!",
-    });
-  }
-});
 
 // ROTA POST - CADASTRAR NOVA SENHA
 router.post("/reset-password", async (req: Request, res: Response) => {
@@ -423,7 +328,7 @@ router.post("/reset-password", async (req: Request, res: Response) => {
 
       password: yup
         .string()
-        .min(6, "A senha deve ter pelo menos 6 caracteres!")
+        .min(8, "A senha deve ter pelo menos 8 caracteres!")
         .required("A nova senha é obrigatória!"),
     });
 
@@ -445,11 +350,27 @@ router.post("/reset-password", async (req: Request, res: Response) => {
       });
     }
 
+    // Verificar se a chave de recuperação expirou
+    if (
+      !user.recoverPasswordExpiresAt ||
+      user.recoverPasswordExpiresAt.getTime() <= Date.now()
+    ) {
+      user.recoverPassword = null;
+      user.recoverPasswordExpiresAt = null;
+
+      await userRepository.save(user);
+
+      return res.status(400).json({
+        message: "Link de recuperação expirado! Solicite uma nova recuperação.",
+      });
+    }
+
     // Criptografar nova senha
     user.password = await bcrypt.hash(data.password, 10);
 
     // Invalidar chave após utilização
     user.recoverPassword = null;
+    user.recoverPasswordExpiresAt = null;
 
     await userRepository.save(user);
 

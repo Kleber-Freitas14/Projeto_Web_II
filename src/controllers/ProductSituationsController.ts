@@ -4,6 +4,7 @@ import express, { type Request, type Response } from "express";
 import { AppDataSource } from "../data-source.js";
 import { ProductSituation } from "../entity/productSituations.js";
 import { PaginationService } from "../services/PaginationService.js";
+import { verifyAdmin } from "../middlewares/adminMiddleware.js";
 
 const router = express.Router();
 
@@ -56,7 +57,7 @@ router.get("/ProductSituations/:id", async (req: Request, res: Response) => {
 });
 
 // CADASTRAR SITUAÇÃO
-router.post("/ProductSituations", async (req: Request, res: Response) => {
+router.post("/ProductSituations", verifyAdmin, async (req: Request, res: Response) => {
     try {
         const { name } = req.body;
 
@@ -85,7 +86,7 @@ router.post("/ProductSituations", async (req: Request, res: Response) => {
 });
 
 // ATUALIZAR SITUAÇÃO
-router.put("/ProductSituations/:id", async (req: Request, res: Response) => {
+router.put("/ProductSituations/:id", verifyAdmin, async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id);
         const { name } = req.body;
@@ -122,7 +123,7 @@ router.put("/ProductSituations/:id", async (req: Request, res: Response) => {
 });
 
 // EXCLUIR SITUAÇÃO
-router.delete("/ProductSituations/:id", async (req: Request, res: Response) => {
+router.delete("/ProductSituations/:id", verifyAdmin, async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id);
 

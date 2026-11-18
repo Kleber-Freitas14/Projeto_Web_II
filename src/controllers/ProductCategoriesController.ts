@@ -3,6 +3,7 @@ import express, { type Request, type Response } from "express";
 import { AppDataSource } from "../data-source.js";
 import { ProductCategory } from "../entity/productCategories.js";
 import { PaginationService } from "../services/PaginationService.js";
+import { verifyAdmin } from "../middlewares/adminMiddleware.js";
 
 const router = express.Router();
 
@@ -68,7 +69,7 @@ router.get("/ProductCategories/:id", async (req: Request, res: Response) => {
 });
 
 // POST - Cadastrar categoria
-router.post("/ProductCategories", async (req: Request, res: Response) => {
+router.post("/ProductCategories", verifyAdmin, async (req: Request, res: Response) => {
     try {
         const { name } = req.body ?? {};
 
@@ -105,7 +106,7 @@ router.post("/ProductCategories", async (req: Request, res: Response) => {
 });
 
 // PUT - Atualizar categoria
-router.put("/ProductCategories/:id", async (req: Request, res: Response) => {
+router.put("/ProductCategories/:id", verifyAdmin, async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id);
         const { name } = req.body ?? {};
@@ -155,7 +156,7 @@ router.put("/ProductCategories/:id", async (req: Request, res: Response) => {
 });
 
 // DELETE - Remover categoria
-router.delete("/ProductCategories/:id", async (req: Request, res: Response) => {
+router.delete("/ProductCategories/:id", verifyAdmin, async (req: Request, res: Response) => {
     try {
         const id = Number(req.params.id);
 

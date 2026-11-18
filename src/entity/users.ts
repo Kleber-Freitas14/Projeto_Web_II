@@ -1,4 +1,3 @@
-
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -25,12 +24,25 @@ export class User {
   password!: string;
 
   @Column({
+    type: "enum",
+    enum: ["ADMIN", "USER"],
+    default: "USER",
+  })
+  tipoUsuario!: "ADMIN" | "USER";
+
+  @Column({
     type: "varchar",
     length: 255,
     unique: true,
     nullable: true,
   })
   recoverPassword!: string | null;
+
+  @Column({
+    type: "timestamp",
+    nullable: true,
+  })
+  recoverPasswordExpiresAt!: Date | null;
 
   @ManyToOne(() => Situation, (situation) => situation.users)
   @JoinColumn({ name: "situationId" })

@@ -1,4 +1,3 @@
-
 import express from "express";
 import dotenv from "dotenv";
 
@@ -13,16 +12,14 @@ import ProductSituationsController from "./controllers/ProductSituationsControll
 import { AppDataSource } from "./data-source.js";
 import { verifyToken } from "./middlewares/authMiddleware.js";
 
-
 // importar biblioteca para conexão externa
-import cors from 'cors';
+import cors from "cors";
 
 // Carregar as variáveis do .env
 dotenv.config();
 
 // Criar a aplicação Express
 const app = express();
-console.log(">>> INDEX.TS ATUAL ESTÁ SENDO EXECUTADO <<<");
 
 //Criar o midldleware para permitir requição externa
 app.use(cors());
@@ -30,22 +27,6 @@ app.use(cors());
 // Configurar recebimento de dados
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-
-// DIAGNÓSTICO TEMPORÁRIO
-app.use((req, res, next) => {
-    console.log("========== REQUISIÇÃO ==========");
-    console.log("URL:", req.url);
-    console.log("MÉTODO:", req.method);
-    console.log("CONTENT-TYPE:", req.headers["content-type"]);
-    console.log("BODY:", req.body);
-    console.log("================================");
-
-    next();
-});
-
-
-
 
 // ROTAS PÚBLICAS
 app.use("/", TesteConnectionController);
@@ -65,15 +46,15 @@ app.use("/", UsersController);
 const PORT = process.env.PORT || 8080;
 
 AppDataSource.initialize()
-    .then(() => {
-        console.log("Conexão com o Banco de Dados realizada com sucesso!");
+  .then(() => {
+    console.log("Conexão com o Banco de Dados realizada com sucesso!");
 
-        app.listen(PORT, () => {
-            console.log(
-                `Servidor iniciado na porta ${PORT}: http://localhost:${PORT}/Situations`
-            );
-        });
-    })
-    .catch((error: unknown) => {
-        console.error("Erro ao conectar ao Banco de Dados:", error);
+    app.listen(PORT, () => {
+      console.log(
+        `Servidor iniciado na porta ${PORT}: http://localhost:${PORT}`,
+      );
     });
+  })
+  .catch((error: unknown) => {
+    console.error("Erro ao conectar ao Banco de Dados:", error);
+  });
